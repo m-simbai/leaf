@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const { ApplicationSession } = require('@esri/arcgis-rest-auth');
@@ -1987,7 +1988,6 @@ app.get('/api/health', (req, res) => {
 
 
 // ==================== DEPLOYMENT (Serve Client) ====================
-const path = require('path');
 
 // Serve static files from the client build directory
 app.use(express.static(path.join(__dirname, '../client/dist')));
