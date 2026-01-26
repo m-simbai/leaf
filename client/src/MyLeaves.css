@@ -1,0 +1,432 @@
+/* ==================== My Leaves Container ==================== */
+.my-leaves-container {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ==================== Leave Balance Section ==================== */
+.leave-balance h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.balance-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.balance-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.balance-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(201, 162, 39, 0.3);
+}
+
+.balance-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.balance-icon.annual {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+}
+
+.balance-icon.sick {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+}
+
+.balance-icon.other {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.balance-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.balance-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.balance-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.balance-unit {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ==================== Filter Section ==================== */
+.filter-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.filter-section h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 6px;
+}
+
+.filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.filter-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-input);
+}
+
+.filter-tab.active {
+  background: var(--accent-gradient);
+  color: white;
+  box-shadow: 0 4px 15px rgba(201, 162, 39, 0.3);
+}
+
+/* ==================== Leave List ==================== */
+.leaves-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.leave-card {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.leave-card:hover {
+  border-color: rgba(201, 162, 39, 0.3);
+}
+
+.leave-card.approved {
+  border-right: 4px solid #10b981;
+  border-left: none;
+}
+
+.leave-card.rejected {
+  border-right: 4px solid #ef4444;
+  border-left: none;
+}
+
+.leave-card.pending {
+  border-right: 4px solid #f59e0b;
+  border-left: none;
+}
+
+.leave-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.leave-type-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-badge.green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.status-badge.red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+/* Header Colors */
+.header-red {
+  background: linear-gradient(to left, rgba(239, 68, 68, 0.1), transparent) !important;
+  border: none !important;
+}
+
+.header-blue {
+  background: linear-gradient(to left, rgba(59, 130, 246, 0.1), transparent) !important;
+  border: none !important;
+}
+
+.header-yellow {
+  background: linear-gradient(to left, rgba(234, 179, 8, 0.1), transparent) !important;
+  border: none !important;
+}
+
+.status-badge.yellow {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.leave-card-body {
+  padding: 20px;
+}
+
+.leave-dates {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.date-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.date-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.date-arrow {
+  font-size: 1.5rem;
+  color: var(--text-muted);
+}
+
+.duration-badge {
+  margin-left: auto;
+  padding: 8px 16px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  font-weight: 600;
+  color: var(--accent-gold);
+}
+
+.rejection-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 10px;
+  color: #f87171;
+  font-size: 0.9rem;
+}
+
+.rejection-reason svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.leave-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.submitted-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.view-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+/* Leave Actions (Check-in & Extension buttons) */
+.leave-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.action-btn.checkin-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.action-btn.extension-btn:hover {
+  border-color: #10b981;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.modification-status {
+  padding: 6px 12px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* No Leaves */
+.no-leaves {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+}
+
+.no-leaves svg {
+  color: var(--text-muted);
+  opacity: 0.5;
+  margin-bottom: 16px;
+}
+
+.no-leaves h3 {
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.no-leaves p {
+  color: var(--text-secondary);
+}
+
+/* ==================== Responsive ==================== */
+@media (max-width: 768px) {
+  .filter-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filter-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .leave-dates {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .date-arrow {
+    display: none;
+  }
+
+  .duration-badge {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+  
+  .leave-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .action-btn {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+}

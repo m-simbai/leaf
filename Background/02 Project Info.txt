@@ -1,0 +1,165 @@
+﻿Feasibility and Architectural Implementation of ArcGIS as a Headless Backend System
+1. Executive Summary
+The feasibility of constructing a custom external web application that utilizes ArcGIS exclusively as a backend database—while hosting the application logic externally, managing authentication server-side to obscure credentials, and integrating with Survey123 for data ingestion—is a technically viable and increasingly common architectural pattern known as "Headless GIS." This approach decouples the frontend user experience from the proprietary ArcGIS interface constraints, leveraging the ArcGIS REST API to treat Feature Services as spatial tables. This report confirms that the proposed architecture is achievable but requires a sophisticated navigation of three critical domains: technical implementation of secure proxies, rigorous adherence to specific licensing frameworks to avoid "multiplexing" violations, and the careful orchestration of data permissions to separate read and write operations.
+The proposed architecture effectively neutralizes the risk of credential scraping by implementing a Backend-for-Frontend (BFF) pattern. By handling authentication on the server side—specifically using the OAuth 2.0 Client Credentials flow or API Key authentication via the ArcGIS Location Platform—the application can present a unified, authenticated identity to the ArcGIS backend while serving unauthenticated or independently authenticated external users. This effectively "tunnels" the secure data to a public or semi-public interface.
+Critically, the distinction between using a standard ArcGIS Online Named User license (which strictly prohibits multiplexing) and utilizing the legitimate "App Authentication" model provided by the ArcGIS Location Platform (PaaS) is the pivot point for legal compliance. The PaaS model shifts the licensing paradigm from user counts to consumption metrics, legitimately allowing a single application credential to serve thousands of anonymous users.
+For the data entry component, redirecting users to a public Survey123 form minimizes development overhead for complex spatial data capture. This "write-path" relies on specific "Public Data Collection" settings within ArcGIS, ensuring that while the entry door (Survey123) is open to the public, the data vault (the Feature Layer) remains opaque to unauthorized queries.
+This report provides an exhaustive analysis of the architectural patterns, security configurations, API implementation details, and licensing frameworks necessary to build this system. It details how to securely proxy requests, configure Hosted Feature Layer Views to separate read (dashboard) and write (survey) operations, and leverage webhooks for real-time integration.
+2. Strategic Architectural Context: The Headless GIS Pattern
+The evolution of enterprise Geographic Information Systems (GIS) has transitioned from monolithic desktop applications to web-based portals (ArcGIS Online/Enterprise), and now, to distributed microservices. The user's request represents a "Headless" architecture, where the "body" (the database, spatial logic, and authentication) remains within the ArcGIS ecosystem, but the "head" (the user interface and presentation layer) is severed and rebuilt using custom web technologies such as React, Angular, or Vue.js.
+2.1 The Backend-as-a-Service (BaaS) Paradigm
+In this specific architecture, ArcGIS is not treated as a destination platform but as a specialized Backend-as-a-Service (BaaS). The custom external web application acts as the middleware. This shift fundamentally alters how data is requested, cached, and secured.
+Unlike a standard Web AppBuilder or Experience Builder application, which relies on the ArcGIS Javascript API executing in the client's browser with visible tokens or user logins, the Headless approach relies on a Service Proxy. The external web application, hosted on infrastructure such as AWS, Azure, or a private server, serves as the gatekeeper. The client-side browser never communicates directly with arcgis.com or the ArcGIS Enterprise portal for the read-path data retrieval. Instead, the browser sends a request to the custom backend (e.g., GET /api/dashboard-data).
+The custom backend performs the heavy lifting:
+1. Identity Abstraction: It holds the ArcGIS credentials (Client ID/Secret or API Key) securely in environment variables, completely inaccessible to the frontend user.
+2. Protocol Translation: It translates the frontend's simplified data request into a complex ArcGIS REST API query.
+3. Data Transformation: It receives the proprietary Esri JSON or GeoJSON and potentially transforms it—flattening attributes, simplifying geometries, or merging with non-spatial data—before sending it to the client.
+This architecture offers superior security and performance control but demands a higher level of responsibility regarding API management and licensing compliance.
+2.2 Decoupling Read and Write Operations
+The architecture proposed involves two distinct directional flows that must be treated separately in the design:
+* The Read Path (Dashboard): This is a "Many-to-One" multiplexed flow. Many external users view data through a single authenticated pipe managed by the custom backend. This path utilizes the custom proxy and App Authentication.
+* The Write Path (Survey123): This is a "Direct-to-Source" flow. Users are redirected away from the custom app to a standard Esri-hosted form. This path utilizes the "Public Data Collection" capability of ArcGIS Online, bypassing the custom backend for the actual submission to ensure data integrity and leverage Survey123's native validation logic.
+3. Authentication and Identity Management
+Securing the connection between the external application and ArcGIS is the most critical technical component. The choice of authentication method dictates not only security but also the billing model and compliance with Terms of Service. The requirement to "hide the token/credentials" mandates a Server-Side Authentication flow.
+3.1 OAuth 2.0 Client Credentials Flow (App Authentication)
+For a server-side application that needs to access secured resources without a user interacting with an ArcGIS login screen, the OAuth 2.0 Client Credentials Flow (often referred to as "App Authentication") is the industry standard and the recommended protocol by Esri for this specific use case.
+In this flow, the application identifies itself rather than a specific user. This is distinct from the "Named User" flow where a human must enter a password. The process involves a strict handshake that occurs entirely on the server:
+1. Credential Generation: The developer creates an "OAuth 2.0 credentials" item in the ArcGIS portal. This generates a client_id and client_secret. These strings are the "keys to the kingdom" and must be stored in secure server-side environment variables.
+2. Token Request: The custom backend makes a POST request to the token endpoint (e.g., https://www.arcgis.com/sharing/rest/oauth2/token). The payload must include the client_id, client_secret, and crucially, the parameter grant_type=client_credentials.
+3. Token Issuance: ArcGIS validates the credentials. If valid, it returns a JSON response containing an access_token and an expires_in value (typically 7200 seconds, or 2 hours). This token represents the application's identity, not a specific user's.
+4. Token Usage: The backend includes this token in the Authorization header (Authorization: Bearer <access_token>) or as a query parameter (token=<access_token>) for subsequent REST API calls to the Feature Service.
+Insight: This method is architecturally superior to embedding a generic "service account" username and password in a script (the legacy "Generate Token" flow). It allows for granular control over permissions via the OAuth item’s settings and avoids the fragility of tying production systems to a specific employee's identity, which might be disabled upon their departure or password rotation. Furthermore, App Authentication generates short-lived tokens, reducing the window of opportunity for misuse if a token is inadvertently logged.
+3.2 API Key Authentication
+An alternative to OAuth 2.0, particularly streamlined for the ArcGIS Location Platform (PaaS), is API Key Authentication. Introduced to simplify development for non-GIS developers, API keys are long-lived access tokens that can be embedded directly into the application code.
+* Mechanism: Unlike the 2-step OAuth flow, the API Key is a static string (e.g., AAPK...). The backend simply appends this key to requests.
+* Security Context: While API keys are generally designed for client-side use (scoped by Referrer URL), using them server-side offers the highest level of security because the key is never exposed to the client browser. The "Referrer" check becomes irrelevant because the request originates from the trusted backend server.
+* Granularity: API keys can be scoped to specific services (e.g., basemaps, routing) and, crucially, to specific private content items (hosted feature layers). It is imperative to scope the API key strictly to the specific hosted feature layers required for the dashboard to minimize the "blast radius" of a potential compromise.
+Comparison of Authentication Methods for Headless Backend
+Feature
+	OAuth 2.0 Client Credentials
+	API Key Authentication
+	Type
+	Short-lived Token (Rotates)
+	Long-lived Token (Static)
+	Implementation Complexity
+	Moderate (Requires Token Management logic)
+	Low (Static String)
+	Security Posture
+	High (Breach requires ID+Secret+New Request)
+	Moderate (Breach allows immediate access until revocation)
+	Best Use Case
+	Enterprise integrations, Dynamic sessions
+	Simple dashboards, PaaS consumption
+	Billing Model
+	Linked to App Owner's Subscription
+	Linked to Creator's PaaS Account
+	3.3 Token Lifecycle Management and Caching
+A robust backend implementation must handle token lifecycle management efficiently. Since OAuth tokens expire (typically every 2 hours, though configurable up to two weeks in some enterprise contexts), the backend code cannot simply request a token once at startup.
+The backend logic must implement a "Check-Refresh-Retry" pattern:
+1. Cache Inspection: Before making a request to ArcGIS, the backend checks its internal cache (e.g., Redis, Memcached, or in-memory variable) for an existing token.
+2. Validity Check: It verifies if the token's expiration time is within a safe buffer (e.g., > 5 minutes remaining).
+3. Refresh: If the token is missing or expiring, the backend initiates the POST request to the token endpoint to acquire a new one and updates the cache.
+4. Error Handling (498/499): Crucially, the backend must handle HTTP 498 (Invalid Token) or 499 (Token Required) errors from the ArcGIS API. These codes indicate that the token, despite being cached, may have been revoked or expired on the server side. The application must catch this error, force a token refresh, and retry the query immediately to prevent user disruption.
+Warning: Hardcoding credentials in frontend code is a critical vulnerability. Snippets advise strictly against exposing client_secret or API keys with broad privileges in client-side code. By proxying requests through the custom backend, the proposed architecture adheres to these security best practices, effectively "hiding" the authentication mechanism from the public internet.
+4. Licensing Framework and Legal Compliance
+While the technical implementation of a headless backend is straightforward, the licensing legality is nuanced and fraught with potential violations regarding "Multiplexing." Using a single "user" account to power an application accessed by many external users is historically restricted under standard ArcGIS Online organizational agreements.
+4.1 The Multiplexing Constraint
+Under the standard ArcGIS Online Master Agreement, a "Named User" credential is for a designated individual. It represents a license for one person to access the software. The terms explicitly state that login credentials "may not be shared with other individuals" and prohibiting mechanisms that "multiplex" access—effectively using software (the custom backend) to pool connections and allow multiple users to utilize a single license.
+If the custom web application uses a single ArcGIS Online Named User account (e.g., a "Creator" type) to query data and display it to 500 unauthenticated public users, this technically violates the Named User licensing model. The application effectively turns one paid license into hundreds of free access points.
+4.2 The Solution: ArcGIS Location Platform (PaaS)
+To address this specific development pattern, Esri introduced the ArcGIS Location Platform (formerly ArcGIS Platform). This PaaS offering fundamentally changes the licensing model from "User-Based" to "Usage-Based" (consumption-based).
+* Commercial Deployment License: The PaaS subscription specifically grants a "Commercial Deployment License," allowing developers to build revenue-generating or public-facing applications where users do not need to sign in with ArcGIS accounts. This is the legal vehicle that authorizes the "Headless" architecture.
+* App Authentication & Billing: In this model, the "App Authentication" (Client Credentials) flow is the intended mechanism. Access is not billed by "who" is logging in, but by the transaction volume—specifically, the number of queries, bandwidth, and storage consumed.
+* Private Data Access: The PaaS model explicitly supports accessing private hosted data via API keys or App Authentication for public applications. This aligns perfectly with the user's requirement to host the application externally and query ArcGIS data that is not otherwise public.
+Key Licensing Takeaway: To remain compliant while building a custom external web app that displays secure data to unauthenticated users, the organization should provision the backend services through an ArcGIS Location Platform account. Alternatively, if using an existing ArcGIS Online organization, one must ensure the subscription includes specific provisions for anonymous usage/commercial deployment via an API key or App Authentication workflow, where the organization pays for the consumption (credits/dollars) of that data transfer rather than user seats.
+4.3 Differentiating Internal vs. External Users
+The definition of the "User" determines the license required.
+* Internal Employees: If the "external web application" is intended for internal employees only (e.g., a corporate dashboard), the licensing expectation usually shifts back to Named Users. Each employee accessing the data should theoretically have a Viewer license to be fully compliant with the "no multiplexing" rule for internal operations. However, the PaaS model allows for "App Authentication" even for internal apps, provided the consumption model is accepted.
+* Public/External Users: If the application is for the general public or external clients (as implied by "redirect users to a public Survey123"), the PaaS/Consumption model is the appropriate and compliant path. The "Commercial Deployment License" covers this use case explicitly.
+5. Backend Implementation: Data Engineering and Querying
+The backend of the custom application serves as the data retrieval engine. It interfaces with the ArcGIS REST API, specifically the Query operation on Feature Services, treating the GIS essentially as a spatial SQL database.
+5.1 The REST API Query Operation
+To populate a dashboard, the backend will construct HTTP GET or POST requests to the feature layer's query endpoint. The structure of this request is critical for performance and data utility.
+Endpoint Structure: https://<service-url>/arcgis/rest/services/<ServiceName>/FeatureServer/<layer-id>/query
+Critical Parameters:
+* where: This is the SQL-92 compliant filter. For a dashboard showing all active incidents, the backend would pass where=status='active' or where=1=1 to retrieve all records.
+* outFields: Specifies which attribute columns to retrieve. To optimize bandwidth and speed, the backend should request only the fields necessary for the dashboard (e.g., outFields=objectid,date,status,category) rather than outFields=*.
+* f (Format): The output format. f=json returns Esri-proprietary JSON, which is rich in metadata. f=geojson is often preferred for modern web frontends (like Leaflet or Mapbox) as it is a standard open format.
+* returnGeometry: If the dashboard includes a map, this is true. If it is only charts and tables, setting this to false significantly reduces the payload size and improves performance.
+* token: The secure token retrieved via the OAuth flow must be appended here or in the header.
+Backend Logic Example: The backend code (e.g., Python/Flask or Node.js/Express) would function as follows:
+1. Retrieve Token: Call internal getArcGISToken() function (which handles cache/refresh).
+2. Construct URL: serviceUrl + "/query?where=1%3D1&outFields=*&f=geojson&token=" + token.
+3. Execute Request: Perform the HTTPS request to ArcGIS.
+4. Process Response: Parse the JSON.
+5. Serve to Frontend: Return the clean data to the React/Angular/Vue app.
+5.2 Handling Pagination and Record Limits
+ArcGIS Feature Services have a default maxRecordCount (often set to 1000 or 2000 features per request) to protect server performance. If the dashboard needs to display 5,000 points, a single query will fail to retrieve all data. The backend must implement pagination logic.
+This involves inspecting the API response for the property exceededTransferLimit: true. If this flag is present, the backend must perform subsequent queries using the resultOffset parameter (e.g., query 1: resultOffset=0, query 2: resultOffset=2000) until all records are retrieved. Alternatively, querying by objectIds ranges is a more performant strategy for deep pagination.
+5.3 Data Layer Security Configuration: View Layers
+Since the dashboard (read access) and Survey123 (write access) serve different purposes, reliance on a single Feature Layer with broad permissions is a security vulnerability. The best practice is to utilize Hosted Feature Layer Views to enforce the Principle of Least Privilege.
+5.3.1 The Dashboard View (Read-Only)
+* Source: Created from the primary feature layer.
+* Settings: Enable Query. Disable Create, Update, and Delete.
+* Sharing: Shared with the Organization or a specific Group. It is not shared publicly. The custom backend accesses this view via the OAuth credentials, effectively "tunneling" the private data to the dashboard.
+5.3.2 The Survey123 View (Add-Only)
+* Source: Created from the same primary feature layer.
+* Settings: Enable Create. Disable Update and Delete (unless users need to edit their own submissions, which is difficult for public anonymous users without tracking).
+* Security Setting: Crucially, enable the setting "Editors can't see any features, even those they add". This is a vital security control. It ensures that if a malicious user discovers the feature service URL, they cannot query the database to see other users' submissions (e.g., sensitive addresses or complaints). The API will simply return 0 results for any query they attempt.
+* Sharing: Shared with "Everyone" (Public). This allows the public Survey123 form to function without a login, while the underlying data remains invisible.
+Table 1: Layer View Security Configuration
+Feature Layer View
+	Intended User
+	Sharing Level
+	Capabilities
+	Editor Tracking Visibility
+	Dashboard View
+	Custom Backend
+	Private (Org)
+	Query Only
+	Visible to App
+	Survey View
+	Public (Survey123)
+	Public
+	Add Only
+	Hidden (Editors see nothing)
+	6. The Write Path: Survey123 Integration Strategy
+The requirement to "redirect users to a public Survey123 form for data entry" simplifies the frontend development significantly. Instead of building a complex custom form with spatial validation and attachment handling, the application delegates this to Survey123, which is designed specifically for this purpose.
+6.1 Public Survey Configuration
+The Survey123 form must be published to a Hosted Feature Layer (or View) that is shared publicly. For this to work securely:
+1. Public Data Collection: This specific setting must be enabled on the layer item in ArcGIS Online/Portal. It acts as a master switch allowing anonymous users to submit data.
+2. Add-Only Access: As detailed in the View Layer section, permissions must be restricted to Add only.
+6.2 Context Passing via URL Parameters
+To create a seamless experience between the custom dashboard and the external survey, the application can pass data to the Survey123 form. For example, if a user clicks on a "Report Issue" button for a specific asset on the dashboard, the backend (or frontend) should construct a dynamic URL that pre-populates the survey with that asset's ID.
+URL Scheme: https://survey123.arcgis.com/share/<itemID>?field:<question_name>=<value>&center=<lat>,<lon>
+* field:asset_id={Clicked_Asset_ID}: This parameter pre-fills the question associated with the asset_id field. Note that the parameter must reference the field name from the XLSForm, not the question label.
+* center={lat},{lon}: This centers the survey's map widget on the specific location of the asset, improving the user experience for spatial reporting.
+* callback: This parameter allows the Survey123 web app to redirect the user back to the custom dashboard after submission (e.g., &callback=https://my-custom-app.com/dashboard). This closes the loop, returning the user to the original application context.
+* autoReload: If the user needs to submit multiple entries rapidly, the autoReload=true parameter can be used to refresh the survey immediately after submission instead of redirecting.
+Insight: Using encodeUrlParams=true is recommended to obfuscate the parameters in the URL. This converts the query string into a hash, preventing users from easily tampering with the pre-filled data (e.g., changing the Asset ID) before submission, although this is "security-through-obscurity" and server-side validation is still best practice.
+6.3 Closing the Loop: Webhooks and Automation
+Since the survey submission happens on Esri's infrastructure, bypassing the custom backend, the dashboard needs a mechanism to know that new data has arrived.
+* Webhooks: Survey123 supports webhooks that trigger upon submission. A webhook can be configured to send a payload to the custom application's backend API (e.g., POST /api/webhook/survey-submitted) or to an automation platform like Microsoft Power Automate.
+* Real-time Update: Upon receiving this webhook, the custom backend can invalidate its local cache or push a WebSocket notification to the frontend to refresh the dashboard data immediately, creating a "live" application feel.
+Warning on Power Automate: Research indicates a known limitation where Survey123 connectors in Power Automate may suffer from token expiration issues every two weeks, requiring manual re-authentication. A robust implementation might prefer a direct webhook to the custom backend or use a "Scheduled Flow" workaround that refreshes the token automatically to prevent service interruptions.
+7. Operational Viability and Risks
+7.1 Security Risks and Mitigations
+The primary security risk in this architecture is the "Public" nature of the Survey123 form. Even with "Add Only" permissions, a public endpoint is susceptible to spam or bot attacks.
+* CAPTCHA: It is highly recommended to enable CAPTCHA on the Survey123 web form to prevent automated bot submissions.
+* Rate Limiting: The custom backend should implement rate limiting on the dashboard read endpoints to prevent a Denial of Service (DoS) attack that could drain the organization's credits or bandwidth allowance.
+7.2 Cost Management (PaaS vs. SaaS)
+* ArcGIS Online (SaaS): Costs are largely fixed per user type, but hosting features consumes credits. High-frequency queries from an external app could drain credits if not managed. However, query bandwidth is generally included in the subscription up to generous limits.
+* ArcGIS Platform (PaaS): Costs are variable and strictly consumption-based. You pay for data storage ($/GB) and data transfer (bandwidth). If the dashboard is query-heavy (e.g., thousands of public users polling for updates every 10 seconds), bandwidth costs could rise significantly. Optimizing queries (outFields, where clauses) and implementing caching on the custom backend is essential to control PaaS costs.
+7.3 Middleware Alternatives: FME
+While a custom Node.js or Python backend is standard, organizations already invested in ETL tools like FME (Safe Software) can utilize FME Server/Flow as the middleware. FME supports creating "Web Connections" to ArcGIS Online using OAuth 2.0. An FME Server Workspace can act as the API endpoint, receiving the request, querying ArcGIS, and returning the JSON. This low-code approach can simplify the maintenance of the authentication logic.
+8. Conclusion
+Building a custom external web application using ArcGIS as a backend is not only feasible but is a robust pattern supported by Esri’s modern API and PaaS offerings. The "Headless" architecture described maximizes control over the user interface while leveraging the powerful spatial data management of ArcGIS.
+Feasibility: High.
+Critical Success Factors:
+1. Adherence to Licensing: Use ArcGIS Location Platform credentials or verify commercial deployment terms to avoid illicit multiplexing.
+2. Segregated Data Views: Use distinct Hosted Feature Layer Views for reading (Dashboard) and writing (Survey123) to enforce the Principle of Least Privilege.
+3. Server-Side Security: Never expose credentials on the client. Use a proxy architecture to handle authentication and token management opaque to the end-user.
+4. Operational Awareness: Monitor consumption and implement caching to manage the variable costs associated with the PaaS model.
+By following this roadmap, the organization can deploy a secure, scalable, and compliant application that seamlessly integrates custom web technologies with the ArcGIS ecosystem.
+Works cited
+1. Terms of Use - ArcGIS Online, https://www.arcgis.com/home/termsofuse.html 2. FAQ | ArcGIS Location Platform, https://location.arcgis.com/faq/ 3. Query features | Documentation - Esri Developer, https://developers.arcgis.com/documentation/portal-and-data-services/data-services/feature-services/query-features/ 4. Launch the field app—ArcGIS Survey123 - Esri Documentation, https://doc.arcgis.com/en/survey123/get-started/integrate-launchfieldapp.htm 5. Protect Your Editable Feature Data from the Public - Esri, https://www.esri.com/about/newsroom/arcuser/protect-your-editable-feature-data-from-the-public 6. Client credentials flow | Documentation - Esri Developer - ArcGIS Online, https://developers.arcgis.com/documentation/security-and-authentication/app-authentication/client-credentials-flow/ 7. Introduction to app authentication | Documentation - Esri Developer - ArcGIS Online, https://developers.arcgis.com/documentation/security-and-authentication/app-authentication/ 8. Tutorial: Create OAuth credentials for user authentication | Esri Leaflet, https://developers.arcgis.com/esri-leaflet/access-tokens/create-oauth-credentials-for-user-authentication/ 9. OAuth credentials (for app authentication) | Documentation - Esri Developer, https://developers.arcgis.com/documentation/security-and-authentication/app-authentication/oauth-credentials-app/ 10. Types of authentication | Documentation - Esri Developer - ArcGIS Online, https://developers.arcgis.com/documentation/security-and-authentication/types-of-authentication/ 11. Authentication and access tokens | ArcGIS REST JS - Esri Developer, https://developers.arcgis.com/arcgis-rest-js/authentication/ 12. Introduction to API key authentication | Documentation - Esri Developer - ArcGIS Online, https://developers.arcgis.com/documentation/security-and-authentication/api-key-authentication/ 13. API key credentials | Documentation | Esri Developer - ArcGIS Online, https://developers.arcgis.com/documentation/security-and-authentication/api-key-authentication/api-key-credentials/ 14. Security and authentication | ArcGIS Maps SDK for Java - Esri Developer, https://developers.arcgis.com/java/security-and-authentication/ 15. Power Automate Survey123 Connector Issue - Esri Community, https://community.esri.com/t5/arcgis-survey123-questions/power-automate-survey123-connector-issue/td-p/1613319 16. Overview | ArcGIS Location Platform, https://location.arcgis.com/help/ 17. ArcGIS Hosted Services: Terms of Use & Pricing Differences - Esri, https://www.esri.com/arcgis-blog/products/developers/developers/arcgis-hosted-services-terms-of-use-pricing-differences 18. E204 Platform Legal ArcGIS Location Platform Agreement Nov 21 2025 - Esri, https://www.esri.com/content/dam/esrisites/en-us/media/legal/platform/platform-legal.pdf 19. Tutorial: Manage a feature layer | Documentation - Esri Developer - ArcGIS Online, https://developers.arcgis.com/documentation/portal-and-data-services/data-services/tutorials/tools/manage-a-hosted-feature-layer-and-feature-service/ 20. User types, roles, and privileges—Portal for ArcGIS, https://enterprise.arcgis.com/en/portal/11.0/administer/linux/roles.htm 21. User types—Portal for ArcGIS, https://enterprise.arcgis.com/en/portal/11.4/administer/windows/user-types-orgs.htm 22. Query a feature layer (SQL) | ArcGIS REST JS - Esri Developer, https://developers.arcgis.com/arcgis-rest-js/data/query-a-feature-layer-sql/ 23. Controlling access to hosted feature layer data—Portal for ArcGIS, https://enterprise.arcgis.com/en/portal/11.4/use/data-access-and-editing.htm 24. Manage feature layers—Portal for ArcGIS, https://enterprise.arcgis.com/en/portal/11.4/use/manage-arcgis-server-feature-layers.htm 25. Best practices for sharing—ArcGIS Online Help | Documentation, https://doc.arcgis.com/en/arcgis-online/reference/best-practices-share.htm 26. Manage hosted feature layers—Portal for ArcGIS, https://enterprise.arcgis.com/en/portal/10.7/use/manage-hosted-feature-layers.htm 27. Manage hosted feature layer editing—Portal for ArcGIS, https://enterprise.arcgis.com/en/portal/11.0/use/manage-editing-hfl.htm 28. URL Scheme in Survey123 - Resource Centre - Esri UK, https://resource.esriuk.com/blog/2017-12-1-url-scheme-in-survey123/ 29. Getting started with URL parameters in Survey123 - Resource Centre, https://resource.esriuk.com/blog/getting-started-with-url-parameters-in-survey123/ 30. Launch the web app—ArcGIS Survey123 - Esri Documentation, https://doc.arcgis.com/en/survey123/get-started/integrate-launchwebapp.htm 31. Webhooks—ArcGIS Survey123 - Esri Documentation, https://doc.arcgis.com/en/survey123/browser/analyze-results/webhooks.htm 32. How To: Create an ArcGIS Survey123 Connector for Microsoft Power Automate for Use with Arc - Esri Support, https://support.esri.com/en-us/knowledge-base/create-an-arcgis-survey123-connector-for-microsoft-powe-000025025 33. How to Create an ArcGIS Online Web Connection (OAuth 2.0) - FME Support Center, https://support.safe.com/hc/en-us/articles/25407474895629-How-to-Create-an-ArcGIS-Online-Web-Connection-OAuth-2-0
