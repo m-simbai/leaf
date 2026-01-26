@@ -6,6 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     // Enable SPA fallback for client-side routing
-    historyApiFallback: true
+    historyApiFallback: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true
+      }
+    }
   }
 })

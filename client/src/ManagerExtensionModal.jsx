@@ -13,7 +13,7 @@ function ManagerExtensionModal({ request, onClose, onSubmit }) {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`http://localhost:3000/api/leaves/${request.id}/manager-extend`, {
+      const response = await fetch(`/api/leaves/${request.id}/manager-extend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

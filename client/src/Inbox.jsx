@@ -104,7 +104,7 @@ function Inbox({ leaves = [], user, onRefresh }) {
     setActionError(null)
     
     try {
-      const response = await fetch(`http://localhost:3000/api/leaves/${objectId}/approve`, {
+      const response = await fetch(`/api/leaves/${objectId}/approve`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reviewedBy: user?.employeeId })
@@ -126,7 +126,7 @@ function Inbox({ leaves = [], user, onRefresh }) {
     setActionError(null)
     
     try {
-      const response = await fetch(`http://localhost:3000/api/leaves/${objectId}/reject`, {
+      const response = await fetch(`/api/leaves/${objectId}/reject`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -154,7 +154,7 @@ function Inbox({ leaves = [], user, onRefresh }) {
     setActionError(null)
     
     try {
-      const response = await fetch(`http://localhost:3000/api/leaves/${objectId}/acknowledge-checkin`, {
+      const response = await fetch(`/api/leaves/${objectId}/acknowledge-checkin`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reviewedBy: user?.employeeId })
@@ -182,7 +182,7 @@ function Inbox({ leaves = [], user, onRefresh }) {
     setActionError(null)
     
     try {
-      const response = await fetch(`http://localhost:3000/api/leaves/${objectId}/approve-extension`, {
+      const response = await fetch(`/api/leaves/${objectId}/approve-extension`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -210,7 +210,7 @@ function Inbox({ leaves = [], user, onRefresh }) {
     setActionError(null)
     
     try {
-      const response = await fetch(`http://localhost:3000/api/leaves/${objectId}/reject-extension`, {
+      const response = await fetch(`/api/leaves/${objectId}/reject-extension`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

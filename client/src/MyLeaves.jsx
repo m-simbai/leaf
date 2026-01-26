@@ -97,7 +97,7 @@ function MyLeaves({ leaves = [], user, leaveBalance }) {
   // Handle early check-in
   const handleEarlyCheckin = async (data) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/leaves/${selectedLeave.id}/early-checkin`, {
+      const response = await fetch(`/api/leaves/${selectedLeave.id}/early-checkin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -117,7 +117,7 @@ function MyLeaves({ leaves = [], user, leaveBalance }) {
   // Handle extension request
   const handleExtensionRequest = async (data) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/leaves/${selectedLeave.id}/request-extension`, {
+      const response = await fetch(`/api/leaves/${selectedLeave.id}/request-extension`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

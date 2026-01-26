@@ -11,7 +11,7 @@ function Calendar({ leaves = [], user }) {
 
   // Fetch employees for live name lookups
   useEffect(() => {
-    fetch('http://localhost:3000/api/employees')
+    fetch('/api/employees')
       .then(res => res.json())
       .then(data => {
         if (data.features) {

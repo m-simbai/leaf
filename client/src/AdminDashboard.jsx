@@ -24,7 +24,7 @@ function AdminDashboard({ user }) {
   // Fetch users
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/admin/users')
+      const response = await fetch('/api/admin/users')
       const data = await response.json()
       if (data.success) {
         setUsers(data.users)
@@ -39,7 +39,7 @@ function AdminDashboard({ user }) {
   // Fetch leaves for duty status
   const fetchLeaves = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/leaves')
+      const response = await fetch('/api/leaves')
       const data = await response.json()
       if (data.success) {
         setLeaves(data.leaves || [])
@@ -52,7 +52,7 @@ function AdminDashboard({ user }) {
   // Fetch managers for assignment dropdown
   const fetchManagers = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/managers')
+      const response = await fetch('/api/managers')
       const data = await response.json()
       if (data.success) {
         setManagers(data.managers || [])
@@ -135,7 +135,7 @@ function AdminDashboard({ user }) {
     if (!selectedUser) return
     
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${selectedUser.id}`, {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
         method: 'DELETE'
       })
       const data = await response.json()
@@ -155,7 +155,7 @@ function AdminDashboard({ user }) {
   // Handle reactivate
   const handleReactivate = async (userId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: true })
@@ -173,7 +173,7 @@ function AdminDashboard({ user }) {
   // Handle manager assignment
   const handleAssignManager = async (userId, managerId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ managerId: managerId || null })
@@ -608,7 +608,7 @@ function AddUserModal({ onClose, onSuccess }) {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:3000/api/admin/users', {
+      const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
@@ -751,7 +751,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
     setError('')
 
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${user.id}`, {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
@@ -873,7 +873,7 @@ function ResetPasswordModal({ user, onClose, onSuccess }) {
     setError('')
 
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${user.id}/reset-password`, {
+      const response = await fetch(`/api/admin/users/${user.id}/reset-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword })

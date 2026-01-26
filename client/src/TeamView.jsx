@@ -8,7 +8,7 @@ function TeamView({ leaves = [], user }) {
 
   // Fetch employees to validate status/existence
   useEffect(() => {
-    fetch(`http://localhost:3000/api/employees?t=${Date.now()}`)
+    fetch(`/api/employees?t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
         if (data.features) {

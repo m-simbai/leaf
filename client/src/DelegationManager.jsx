@@ -21,7 +21,7 @@ function DelegationManager({ user }) {
   // Fetch delegations
   const fetchDelegations = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/delegations/${user.employeeId}`)
+      const response = await fetch(`/api/delegations/${user.employeeId}`)
       const data = await response.json()
       if (data.success) {
         setDelegations({ outgoing: data.outgoing || [], incoming: data.incoming || [] })
@@ -36,7 +36,7 @@ function DelegationManager({ user }) {
   // Fetch other managers for dropdown
   const fetchOtherManagers = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/managers/except/${user.employeeId}`)
+      const response = await fetch(`/api/managers/except/${user.employeeId}`)
       const data = await response.json()
       if (data.success) {
         setOtherManagers(data.managers || [])
@@ -62,7 +62,7 @@ function DelegationManager({ user }) {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/delegations', {
+      const response = await fetch('/api/delegations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -89,7 +89,7 @@ function DelegationManager({ user }) {
   // Cancel delegation
   const handleCancel = async (delegationId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/delegations/${delegationId}/cancel`, {
+      const response = await fetch(`/api/delegations/${delegationId}/cancel`, {
         method: 'PUT'
       })
       

@@ -102,7 +102,7 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
     
     try {
       // Submit to real API
-      const response = await fetch('http://localhost:3000/api/leaves', {
+      const response = await fetch('/api/leaves', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

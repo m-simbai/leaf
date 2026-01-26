@@ -32,7 +32,7 @@ function Dashboard({ user, onLogout }) {
     user?.role?.toLowerCase() === 'manager' ? 'calendar' : 'myleaves'
   )
 
-  const API_URL = 'http://localhost:3000/api/leaves';
+  const API_URL = '/api/leaves';
   const SURVEY_URL = 'https://arcg.is/0uvKS8'; 
 
   const fetchLeaves = async () => {

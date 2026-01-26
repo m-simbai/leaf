@@ -31,7 +31,7 @@ function PasswordPromptModal({ isOpen, onClose, onSuccess, user }) {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/verify-password', {
+      const response = await fetch('/api/auth/verify-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
