@@ -574,4 +574,30 @@ body {
   .desktop-only {
     display: none !important;
   }
+
+  /* Stats Card Responsive Fix */
+  .stats-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+    gap: 8px;
+  }
+  
+  .stats-info {
+    width: 100%;
+  }
+
+  /* Fix text alignment */
+  .stats-label {
+    font-size: 0.8rem;
+    white-space: normal; /* Allow wrap */
+  }
+
+  .stats-subtext {
+    position: static; /* Remove absolute positioning on mobile */
+    font-size: 0.75rem;
+    margin-top: 4px;
+    display: block;
+    text-align: left;
+  }
 }

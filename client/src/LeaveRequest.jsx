@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, forwardRef } from 'react'
 import { getMonth, getYear } from 'date-fns'
 import { Calendar, Clock, Send, AlertCircle, CheckCircle, X } from 'lucide-react'
 import DatePicker from 'react-datepicker'
@@ -198,8 +198,7 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
   }
 
   // Custom Input for DatePicker to look like standard input but behave like a button
-  // This prevents mobile keyboard, disables native date picker, and gives full styling control
-  const CustomDateInput = ({ value, onClick, placeholder, className }, ref) => (
+  const CustomDateInput = forwardRef(({ value, onClick, placeholder, className }, ref) => (
     <button 
       className={className} 
       onClick={onClick} 
@@ -208,7 +207,7 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
     >
       {value || <span className="placeholder-text">{placeholder}</span>}
     </button>
-  )
+  ))
 
   return (
     <div className="leave-request-container">
@@ -259,19 +258,19 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
                     {
                       name: "offset",
                       options: {
-                        offset: [20, 0], // Shift 20px to right
+                        offset: [0, 8], // 0px horizontal, 8px vertical gap
                       },
                     },
                     {
                       name: "preventOverflow",
                       options: {
                         boundary: "viewport",
-                        rootBoundary: "viewport",
-                        tether: false,
-                        altAxis: true,
                       },
                     },
                   ]}
+                  popperPlacement="bottom-start"
+                  withPortal
+                  portalId="root-portal"
                   renderCustomHeader={({
                     date,
                     changeYear,
@@ -335,6 +334,23 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
                   calendarClassName="custom-calendar-popup start-date-popup"
                   showPopperArrow={false}
                   popperProps={{ strategy: 'fixed' }}
+                  popperModifiers={[
+                    {
+                      name: "offset",
+                      options: {
+                        offset: [0, 8],
+                      },
+                    },
+                    {
+                      name: "preventOverflow",
+                      options: {
+                        boundary: "viewport",
+                      },
+                    },
+                  ]}
+                  popperPlacement="bottom-start"
+                  withPortal
+                  portalId="root-portal"
                   renderCustomHeader={({
                     date,
                     changeYear,

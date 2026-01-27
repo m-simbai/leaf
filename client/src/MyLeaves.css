@@ -429,4 +429,30 @@
     font-size: 0.8rem;
     padding: 6px 10px;
   }
+
+  /* Fix Balance Cards overflowing */
+  .balance-cards {
+    grid-template-columns: 1fr; /* Stack vertically on small screens */
+    gap: 12px;
+  }
+
+  .balance-card {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .balance-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .balance-value {
+    font-size: 1.5rem;
+  }
+
+  .balance-label {
+    font-size: 0.8rem;
+    word-break: break-word; /* Ensure wrapping */
+    white-space: normal;
+  }
 }
