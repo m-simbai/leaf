@@ -16,6 +16,7 @@ const WEBHOOK_EXTENSION_REQUEST = process.env.WEBHOOK_EXTENSION_REQUEST;
 const WEBHOOK_EXTENSION_APPROVED = process.env.WEBHOOK_EXTENSION_APPROVED;
 const WEBHOOK_EXTENSION_REJECTED = process.env.WEBHOOK_EXTENSION_REJECTED;
 const WEBHOOK_MANAGER_EXTENSION = process.env.WEBHOOK_MANAGER_EXTENSION;
+const WEBHOOK_PASSWORD_RESET = process.env.WEBHOOK_PASSWORD_RESET;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'p.tagwireyi@cheworeconservation.org';
 
 /**
@@ -194,6 +195,21 @@ async function notifyManagerExtension(requestDetails) {
     return sendWebhook(WEBHOOK_MANAGER_EXTENSION, data);
 }
 
+/**
+ * Notify admin of password reset request
+ */
+async function notifyPasswordReset(requestDetails) {
+    const data = {
+        username: requestDetails.username,
+        employeeEmail: requestDetails.employeeEmail,
+        adminEmail: ADMIN_EMAIL,
+        message: `Password reset requested for user: ${requestDetails.username}`
+    };
+
+    console.log('📧 Sending password reset notification for:', requestDetails.username);
+    return sendWebhook(WEBHOOK_PASSWORD_RESET, data);
+}
+
 module.exports = {
     notifyNewRequest,
     notifyApproved,
@@ -202,5 +218,6 @@ module.exports = {
     notifyExtensionRequest,
     notifyExtensionApproved,
     notifyExtensionRejected,
-    notifyManagerExtension
+    notifyManagerExtension,
+    notifyPasswordReset
 };

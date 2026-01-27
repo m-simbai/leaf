@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
+import { getMonth, getYear } from 'date-fns'
 import { Calendar, Clock, Send, AlertCircle, CheckCircle, X } from 'lucide-react'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
 import './LeaveRequest.css'
 
 function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, sick: 10, other: 3 } }) {
@@ -149,6 +152,13 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
     { id: 'sick', label: 'Sick Leave', icon: '🏥', balance: leaveBalance.sick },
     { id: 'other', label: 'Compassionate Leave', icon: '📋', balance: leaveBalance.other },
   ]
+  
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const years = Array.from({ length: 10 }, (_, i) => getYear(new Date()) + i); // Current year + next 9
 
   // If submitted, show success message
   if (submitted) {
@@ -187,6 +197,19 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
     )
   }
 
+  // Custom Input for DatePicker to look like standard input but behave like a button
+  // This prevents mobile keyboard, disables native date picker, and gives full styling control
+  const CustomDateInput = ({ value, onClick, placeholder, className }, ref) => (
+    <button 
+      className={className} 
+      onClick={onClick} 
+      ref={ref}
+      type="button"
+    >
+      {value || <span className="placeholder-text">{placeholder}</span>}
+    </button>
+  )
+
   return (
     <div className="leave-request-container">
       <form onSubmit={handleSubmit} className="leave-request-form">
@@ -212,19 +235,81 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
         {/* Date Selection */}
         <div className="form-section">
           <label className="section-label">Leave Dates</label>
+
           <div className="date-inputs">
             <div className="input-group">
               <label htmlFor="startDate">Start Date</label>
-              <div className="input-wrapper">
-                <Calendar size={18} />
-                <input
-                  type="date"
-                  id="startDate"
-                  name="startDate"
-                  value={formData.startDate}
-                  onChange={handleChange}
-                  min={today}
-                  className={errors.startDate ? 'error' : ''}
+              <div className="input-wrapper custom-datepicker-wrapper">
+                <Calendar size={18} className="calendar-icon" />
+                <DatePicker
+                  selected={formData.startDate ? new Date(formData.startDate) : null}
+                  onChange={(date) => {
+                    const dateStr = date ? date.toISOString().split('T')[0] : '';
+                    setFormData(prev => ({ ...prev, startDate: dateStr }));
+                    if (errors.startDate) setErrors(prev => ({ ...prev, startDate: null }))
+                  }}
+                  minDate={new Date()}
+                  dateFormat="dd/MM/yyyy"
+                  placeholderText="Select start date"
+                  customInput={<CustomDateInput className={`custom-datepicker-input ${errors.startDate ? 'error' : ''}`} />}
+                  calendarClassName="custom-calendar-popup"
+                  showPopperArrow={false}
+                  popperProps={{ strategy: 'fixed' }} // Fixes overflow/cutoff issues
+                  popperModifiers={[
+                    {
+                      name: "offset",
+                      options: {
+                        offset: [20, 0], // Shift 20px to right
+                      },
+                    },
+                    {
+                      name: "preventOverflow",
+                      options: {
+                        boundary: "viewport",
+                        rootBoundary: "viewport",
+                        tether: false,
+                        altAxis: true,
+                      },
+                    },
+                  ]}
+                  renderCustomHeader={({
+                    date,
+                    changeYear,
+                    changeMonth,
+                    decreaseMonth,
+                    increaseMonth,
+                    prevMonthButtonDisabled,
+                    nextMonthButtonDisabled,
+                  }) => (
+                    <div className="custom-datepicker-header">
+                      <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled} type="button" className="nav-btn">{"<"}</button>
+                      <div className="header-selects">
+                        <select
+                          value={months[getMonth(date)]}
+                          onChange={({ target: { value } }) =>
+                            changeMonth(months.indexOf(value))
+                          }
+                        >
+                          {months.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={getYear(date)}
+                          onChange={({ target: { value } }) => changeYear(value)}
+                        >
+                          {years.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button onClick={increaseMonth} disabled={nextMonthButtonDisabled} type="button" className="nav-btn">{">"}</button>
+                    </div>
+                  )}
                 />
               </div>
               {errors.startDate && <span className="error-text">{errors.startDate}</span>}
@@ -234,16 +319,60 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
             
             <div className="input-group">
               <label htmlFor="endDate">End Date</label>
-              <div className="input-wrapper">
-                <Calendar size={18} />
-                <input
-                  type="date"
-                  id="endDate"
-                  name="endDate"
-                  value={formData.endDate}
-                  onChange={handleChange}
-                  min={formData.startDate || today}
-                  className={errors.endDate ? 'error' : ''}
+              <div className="input-wrapper custom-datepicker-wrapper">
+                <Calendar size={18} className="calendar-icon" />
+                <DatePicker
+                  selected={formData.endDate ? new Date(formData.endDate) : null}
+                  onChange={(date) => {
+                    const dateStr = date ? date.toISOString().split('T')[0] : '';
+                    setFormData(prev => ({ ...prev, endDate: dateStr }));
+                    if (errors.endDate) setErrors(prev => ({ ...prev, endDate: null }))
+                  }}
+                  minDate={formData.startDate ? new Date(formData.startDate) : new Date()}
+                  dateFormat="dd/MM/yyyy"
+                  placeholderText="Select end date"
+                  customInput={<CustomDateInput className={`custom-datepicker-input ${errors.endDate ? 'error' : ''}`} />}
+                  calendarClassName="custom-calendar-popup start-date-popup"
+                  showPopperArrow={false}
+                  popperProps={{ strategy: 'fixed' }}
+                  renderCustomHeader={({
+                    date,
+                    changeYear,
+                    changeMonth,
+                    decreaseMonth,
+                    increaseMonth,
+                    prevMonthButtonDisabled,
+                    nextMonthButtonDisabled,
+                  }) => (
+                    <div className="custom-datepicker-header">
+                      <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled} type="button" className="nav-btn">{"<"}</button>
+                      <div className="header-selects">
+                        <select
+                          value={months[getMonth(date)]}
+                          onChange={({ target: { value } }) =>
+                            changeMonth(months.indexOf(value))
+                          }
+                        >
+                          {months.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={getYear(date)}
+                          onChange={({ target: { value } }) => changeYear(value)}
+                        >
+                          {years.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button onClick={increaseMonth} disabled={nextMonthButtonDisabled} type="button" className="nav-btn">{">"}</button>
+                    </div>
+                  )}
                 />
               </div>
               {errors.endDate && <span className="error-text">{errors.endDate}</span>}

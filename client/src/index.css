@@ -22,10 +22,17 @@ html, body, #root {
   padding: 0;
 }
 
-body {
-  min-height: 100vh;
-  min-width: 100vw;
-  overflow-x: hidden;
+/* Hide scrollbar for Chrome, Safari and Opera */
+html, body, #root, * {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+body::-webkit-scrollbar,
+html::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;
 }
 
 #root {

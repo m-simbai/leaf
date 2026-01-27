@@ -120,7 +120,7 @@ function Dashboard({ user, onLogout }) {
       <aside className="dashboard-sidebar">
         <div className="sidebar-header">
           <div className="brand">
-            <img src="/logo-light.png" alt="Leaf Tracker" className="brand-logo" />
+            <img src="/logo.svg" alt="Leaf Tracker" className="brand-logo" />
             <span className="brand-name">Leaf Tracker</span>
           </div>
         </div>
@@ -138,7 +138,7 @@ function Dashboard({ user, onLogout }) {
                 title="Submit your own leave requests"
               >
                 <FileText size={16} />
-                Request
+                Staff
               </button>
               <button
                 className={`portal-btn ${portalMode === 'manage' ? 'active' : ''}`}
@@ -149,7 +149,7 @@ function Dashboard({ user, onLogout }) {
                 title="Manage team leave requests"
               >
                 <UserCog size={16} />
-                Manage
+                Management
               </button>
             </div>
           )}
@@ -208,31 +208,101 @@ function Dashboard({ user, onLogout }) {
       <main className="dashboard-main">
         {/* Top Header */}
         <header className="main-header">
-          <div className="header-left">
-          <h1>{allTabs.find(t => t.id === activeTab)?.label || 'Dashboard'}</h1>
-            <p className="header-subtitle">
-              {activeTab === 'myleaves' && 'View your leave requests and balance'}
-              {activeTab === 'request' && 'Submit a new leave request'}
-              {activeTab === 'calendar' && 'View team availability at a glance'}
-              {activeTab === 'team' && 'Track leave dates and countdowns'}
-              {activeTab === 'inbox' && 'Review and approve leave requests'}
-              {activeTab === 'settings' && 'Configure application settings'}
-              {activeTab === 'users' && 'Manage accounts, roles, and permissions'}
-            </p>
+          {/* Mobile Navigation (Visible only on mobile) */}
+          <div className="mobile-nav">
+            {isManager && (
+              <div className="mobile-portal-switch">
+                <button
+                  className={`mobile-nav-item ${portalMode === 'request' ? 'active' : ''}`}
+                  onClick={() => {
+                    setPortalMode('request')
+                    setActiveTab('myleaves')
+                  }}
+                >
+                  <FileText size={20} />
+                </button>
+                <button
+                  className={`mobile-nav-item ${portalMode === 'manage' ? 'active' : ''}`}
+                  onClick={() => {
+                    setPortalMode('manage')
+                    setActiveTab('calendar')
+                  }}
+                >
+                  <UserCog size={20} />
+                </button>
+                <div className="mobile-nav-separator"></div>
+              </div>
+            )}
+            
+            {mainTabs.map(tab => (
+              <button
+                key={tab.id}
+                className={`mobile-nav-item ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <tab.icon size={20} />
+              </button>
+            ))}
+
+            {bottomTabs.length > 0 && (
+              <>
+                <div className="mobile-nav-separator"></div>
+                {bottomTabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    className={`mobile-nav-item ${activeTab === tab.id ? 'active' : ''}`}
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    <tab.icon size={20} />
+                    {tab.count > 0 && <span className="mobile-nav-badge">{tab.count}</span>}
+                  </button>
+                ))}
+              </>
+            )}
+            
+             {/* Refresh Button (Mobile) */}
+             {!isAdmin && (
+              <button 
+                className={`mobile-nav-item ${loading ? 'spin' : ''}`} 
+                onClick={fetchLeaves}
+                disabled={loading}
+              >
+                <RefreshCw size={20} />
+              </button>
+             )}
+
+             <button className="mobile-nav-item logout" onClick={onLogout}>
+              <LogOut size={20} />
+            </button>
           </div>
-          <div className="header-right">
-            {!isAdmin && (
-              <button onClick={fetchLeaves} disabled={loading} className="btn btn-secondary">
-                <RefreshCw size={18} className={loading ? 'spin' : ''} />
-                <span className="btn-text">Refresh</span>
-              </button>
-            )}
-            {!isManager && !isAdmin && (
-              <button onClick={handleNewRequest} className="btn btn-primary">
-                <PlusCircle size={18} />
-                <span className="btn-text">New Request</span>
-              </button>
-            )}
+
+          <div className="header-content-wrapper">
+            <div className="header-left">
+              <h1>{allTabs.find(t => t.id === activeTab)?.label || 'Dashboard'}</h1>
+              <p className="header-subtitle">
+                {activeTab === 'myleaves' && 'View your leave requests and balance'}
+                {activeTab === 'request' && 'Submit a new leave request'}
+                {activeTab === 'calendar' && 'View team availability at a glance'}
+                {activeTab === 'team' && 'Track leave dates and countdowns'}
+                {activeTab === 'inbox' && 'Review and approve leave requests'}
+                {activeTab === 'settings' && 'Configure application settings'}
+                {activeTab === 'users' && 'Manage accounts, roles, and permissions'}
+              </p>
+            </div>
+            <div className="header-right">
+              {!isAdmin && (
+                <button onClick={fetchLeaves} disabled={loading} className="btn btn-secondary icon-only-mobile desktop-only">
+                  <RefreshCw size={18} className={loading ? 'spin' : ''} />
+                  <span className="btn-text">Refresh</span>
+                </button>
+              )}
+              {!isManager && !isAdmin && (
+                <button onClick={handleNewRequest} className="btn btn-primary icon-only-mobile desktop-only">
+                  <PlusCircle size={18} />
+                  <span className="btn-text">New Request</span>
+                </button>
+              )}
+            </div>
           </div>
         </header>
 

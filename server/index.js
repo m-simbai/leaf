@@ -5,7 +5,7 @@ const cors = require('cors');
 const { ApplicationSession } = require('@esri/arcgis-rest-auth');
 const { queryFeatures, addFeatures, updateFeatures } = require('@esri/arcgis-rest-feature-layer');
 const crypto = require('crypto');
-const { notifyNewRequest, notifyApproved, notifyRejected, notifyEarlyCheckin, notifyExtensionRequest, notifyExtensionApproved, notifyExtensionRejected, notifyManagerExtension } = require('./services/webhookService');
+const { notifyNewRequest, notifyApproved, notifyRejected, notifyEarlyCheckin, notifyExtensionRequest, notifyExtensionApproved, notifyExtensionRejected, notifyManagerExtension, notifyPasswordReset } = require('./services/webhookService');
 const { calculateProjectedSchedule, getCycleStatus, getLeaveTypeColor, YEARLY_SICK_DAYS, YEARLY_COMPASSIONATE_DAYS } = require('./services/cycleService');
 
 const app = express();
@@ -355,6 +355,56 @@ app.post('/api/auth/verify-password', async (req, res) => {
         res.status(500).json({ error: 'Verification failed' });
     }
 });
+
+// Forgot password endpoint
+app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+        const { username } = req.body;
+        
+        if (!username) {
+            return res.status(400).json({ error: 'Username is required' });
+        }
+
+        const authentication = getSession();
+        
+        // Sanitize username to prevent SQL injection (simple escape for single quotes)
+        const sanitizedUsername = username.replace(/'/g, "''");
+        
+        // Query employees table to find user
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `Username = '${sanitizedUsername}'`,
+            outFields: 'Username,Email',
+            returnGeometry: false,
+            authentication
+        });
+
+        // Always return success to prevent username enumeration, but send webhook if found
+        if (response.features && response.features.length > 0) {
+            const employee = response.features[0].attributes;
+            
+            // Send webhook notification to admin
+            await notifyPasswordReset({
+                username: employee.Username,
+                employeeEmail: employee.Email || 'No email on file'
+            });
+
+            res.json({ 
+                success: true, 
+                message: 'A password reset request has been sent to the administrator.' 
+            });
+        } else {
+             // User requested explicit feedback if username is not found
+            return res.status(404).json({ error: 'Username not found. Please contact administrator.' });
+        }
+
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ error: 'Request failed' });
+    }
+});
+
+
 
 // Get current user's leave balance
 app.get('/api/auth/balance/:employeeId', async (req, res) => {
@@ -1986,6 +2036,11 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+
+// JSON 404 handler for API routes
+app.use('/api', (req, res) => {
+    res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl}` });
+});
 
 // ==================== DEPLOYMENT (Serve Client) ====================
 

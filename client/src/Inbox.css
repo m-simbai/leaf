@@ -520,14 +520,80 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .inbox-container {
+    padding-top: 10px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
   .inbox-tabs {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    background: transparent;
+    border: none;
+    padding: 0;
+    gap: 12px;
+    width: 100%; /* Reset to 100% instead of calc to avoid scroll issues if not needed */
+    padding-left: 4px; /* Slight padding for start */
+    padding-right: 4px; /* Slight padding for end */
+  }
+
+  .inbox-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .inbox-tab {
-    font-size: 0.8rem;
-    padding: 10px 14px;
+    font-size: 0.85rem;
+    padding: 8px 16px;
     white-space: nowrap;
+    flex-shrink: 0;
+    background: var(--bg-card); /* Add background to individual pills */
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  }
+  
+  .inbox-tab.active {
+    background: var(--accent-gradient);
+    border-color: transparent;
+    color: white;
+  }
+
+  .no-requests {
+    min-height: 50vh; /* Reduced slightly for better visual balance */
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    border: none;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .no-requests h3, 
+  .no-requests p {
+      text-align: center;
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      max-width: 300px; /* Prevent text from being too wide on straight lines */
+  }
+
+  .no-requests svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      opacity: 0.3;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
   }
 
   .request-header {

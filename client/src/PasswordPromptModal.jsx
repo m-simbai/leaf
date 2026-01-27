@@ -84,7 +84,7 @@ function PasswordPromptModal({ isOpen, onClose, onSuccess, user }) {
         <div style={{ textAlign: 'center', padding: '0 24px' }}>
           <h2 style={{ margin: '0 0 8px 0', fontSize: '1.25rem' }}>Security Check</h2>
           <p style={{ margin: '0', color: '#6b7280' }}>
-            Please enter your password to switch to the Manage Portal.
+            Please enter your password to switch to Management.
           </p>
         </div>
 

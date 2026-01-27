@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "build": "npm run build --workspace=client",
-    "start": "npm start --workspace=server"
+    "start": "npm start --workspace=server",
+    "client": "npm run dev --workspace=client",
+    "server": "npm start --workspace=server"
   },
   "workspaces": [
     "client",
