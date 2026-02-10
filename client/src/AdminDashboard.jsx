@@ -16,6 +16,7 @@ function AdminDashboard({ user }) {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false)
   
   const [selectedUser, setSelectedUser] = useState(null)
   const [error, setError] = useState('')
@@ -149,6 +150,28 @@ function AdminDashboard({ user }) {
       }
     } catch (err) {
       setError('Failed to deactivate user')
+    }
+  }
+
+  // Handle permanent delete
+  const handlePermanentDelete = async () => {
+    if (!selectedUser) return
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/permanent`, {
+        method: 'DELETE'
+      })
+      const data = await response.json()
+      if (data.success) {
+        setSuccess('User permanently deleted')
+        fetchUsers()
+        setShowPermanentDeleteModal(false)
+        setSelectedUser(null)
+      } else {
+        setError(data.error)
+      }
+    } catch (err) {
+      setError('Failed to permanently delete user')
     }
   }
 
@@ -419,13 +442,25 @@ function AdminDashboard({ user }) {
                             <Trash2 size={16} />
                           </button>
                         ) : (
-                          <button 
-                            className="btn-icon reactivate"
-                            title="Reactivate User"
-                            onClick={() => handleReactivate(u.id)}
-                          >
-                            <Check size={16} />
-                          </button>
+                          <>
+                            <button 
+                              className="btn-icon reactivate"
+                              title="Reactivate User"
+                              onClick={() => handleReactivate(u.id)}
+                            >
+                              <Check size={16} />
+                            </button>
+                            <button 
+                              className="btn-icon permanent-delete"
+                              title="Permanently Delete User"
+                              onClick={() => {
+                                setSelectedUser(u)
+                                setShowPermanentDeleteModal(true)
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -532,9 +567,9 @@ function AdminDashboard({ user }) {
       {showAddModal && (
         <AddUserModal 
           onClose={() => setShowAddModal(false)}
-          onSuccess={() => {
+          onSuccess={(message) => {
             setShowAddModal(false)
-            setSuccess('User created successfully')
+            setSuccess(message || 'User created. Password setup email sent.')
             fetchUsers()
           }}
         />
@@ -584,6 +619,18 @@ function AdminDashboard({ user }) {
           onConfirm={handleDelete}
         />
       )}
+
+      {/* Permanent Delete Confirmation Modal */}
+      {showPermanentDeleteModal && selectedUser && (
+        <PermanentDeleteModal 
+          user={selectedUser}
+          onClose={() => {
+            setShowPermanentDeleteModal(false)
+            setSelectedUser(null)
+          }}
+          onConfirm={handlePermanentDelete}
+        />
+      )}
     </div>
   )
 }
@@ -595,7 +642,6 @@ function AddUserModal({ onClose, onSuccess }) {
     lastName: '',
     email: '',
     username: '',
-    password: '',
     role: 'staff',
     department: ''
   })
@@ -673,29 +719,18 @@ function AddUserModal({ onClose, onSuccess }) {
             />
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Username *</label>
-              <input 
-                type="text"
-                className="form-control"
-                value={form.username}
-                onChange={e => setForm({...form, username: e.target.value})}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Password *</label>
-              <input 
-                type="password"
-                className="form-control"
-                value={form.password}
-                onChange={e => setForm({...form, password: e.target.value})}
-                required
-                minLength={4}
-              />
-            </div>
+          <div className="form-group">
+            <label>Username *</label>
+            <input 
+              type="text"
+              className="form-control"
+              value={form.username}
+              onChange={e => setForm({...form, username: e.target.value})}
+              required
+            />
           </div>
+
+          <p className="info-text">📧 User will receive an email to set their password.</p>
 
           <div className="form-row">
             <div className="form-group">
@@ -996,6 +1031,73 @@ function DeleteConfirmModal({ user, onClose, onConfirm }) {
               disabled={confirmName !== user.username}
             >
               Deactivate User
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Permanent Delete Confirmation Modal
+function PermanentDeleteModal({ user, onClose, onConfirm }) {
+  const [confirmName, setConfirmName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (confirmName !== user.username) {
+      setError('Username does not match')
+      return
+    }
+    setLoading(true)
+    await onConfirm()
+    setLoading(false)
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content danger permanent-delete">
+        <button className="modal-close" onClick={onClose}><X size={24} /></button>
+        <div className="modal-header">
+          <AlertTriangle size={24} className="modal-icon danger" />
+          <h2>Permanently Delete User</h2>
+        </div>
+        
+        <div className="permanent-delete-warning">
+          <AlertTriangle size={20} />
+          <div>
+            <strong>This action cannot be undone!</strong>
+            <p>This will permanently remove <strong>{user.firstName} {user.lastName}</strong> and all associated data from the system.</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group">
+            <label>Type <strong>{user.username}</strong> to confirm permanent deletion</label>
+            <input 
+              type="text"
+              className="form-control"
+              value={confirmName}
+              onChange={e => {
+                setConfirmName(e.target.value)
+                setError('')
+              }}
+              placeholder="Enter username"
+              autoFocus
+            />
+            {error && <div className="error-message small">{error}</div>}
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button 
+              type="submit" 
+              className="btn-danger" 
+              disabled={confirmName !== user.username || loading}
+            >
+              {loading ? 'Deleting...' : 'Permanently Delete'}
             </button>
           </div>
         </form>

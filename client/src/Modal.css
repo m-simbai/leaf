@@ -15,6 +15,7 @@
 
 .modal-content {
     background: white;
+    color: #1f2937;
     border-radius: 16px;
     width: 90%;
     max-width: 480px;
@@ -102,6 +103,8 @@
     border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 14px;
+    color: #1f2937;
+    background-color: #ffffff;
     transition: border-color 0.2s, box-shadow 0.2s;
     font-family: inherit;
 }

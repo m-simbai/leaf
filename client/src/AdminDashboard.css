@@ -683,3 +683,42 @@
   padding: 8px;
 }
 
+/* Permanent Delete Button */
+.btn-icon.permanent-delete {
+  background: rgba(127, 29, 29, 0.15);
+  color: #991b1b;
+}
+
+.btn-icon.permanent-delete:hover {
+  background: #991b1b;
+  color: white;
+}
+
+/* Permanent Delete Warning */
+.permanent-delete-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 10px;
+  margin: 0 24px;
+  color: #991b1b;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.permanent-delete-warning svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.permanent-delete-warning p {
+  margin-top: 4px;
+  color: #7f1d1d;
+}
+
+.modal-content.permanent-delete {
+  border-top: 4px solid #991b1b;
+}

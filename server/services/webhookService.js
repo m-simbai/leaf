@@ -196,7 +196,7 @@ async function notifyManagerExtension(requestDetails) {
 }
 
 /**
- * Notify admin of password reset request
+ * Notify admin of password reset request (legacy - notification only)
  */
 async function notifyPasswordReset(requestDetails) {
     const data = {
@@ -210,6 +210,181 @@ async function notifyPasswordReset(requestDetails) {
     return sendWebhook(WEBHOOK_PASSWORD_RESET, data);
 }
 
+// ==================== NEW WEBHOOKS ====================
+
+const WEBHOOK_ACCOUNT_CREATED = process.env.WEBHOOK_ACCOUNT_CREATED;
+const WEBHOOK_PASSWORD_SETUP_LINK = process.env.WEBHOOK_PASSWORD_SETUP_LINK;
+const WEBHOOK_MANAGER_ASSIGNMENT = process.env.WEBHOOK_MANAGER_ASSIGNMENT;
+const WEBHOOK_PASSWORD_RESET_LINK = process.env.WEBHOOK_PASSWORD_RESET_LINK;
+
+/**
+ * Notify new user that their account was created
+ */
+async function notifyAccountCreated(userDetails) {
+    const data = {
+        firstName: userDetails.firstName,
+        lastName: userDetails.lastName,
+        email: userDetails.email,
+        username: userDetails.username,
+        role: userDetails.role,
+        department: userDetails.department || 'Not assigned',
+        adminEmail: ADMIN_EMAIL,
+        message: `Welcome to the Leave Tracker! Your account has been created.`
+    };
+
+    console.log('📧 Sending account created notification to:', userDetails.email);
+    return sendWebhook(WEBHOOK_ACCOUNT_CREATED, data);
+}
+
+/**
+ * Send one-time password setup link to new user
+ */
+async function notifyPasswordSetupLink(userDetails) {
+    const data = {
+        firstName: userDetails.firstName,
+        lastName: userDetails.lastName,
+        email: userDetails.email,
+        username: userDetails.username,
+        setupLink: userDetails.setupLink,
+        expiresIn: '24 hours',
+        adminEmail: ADMIN_EMAIL,
+        message: `Please click the link below to set your password. This link expires in 24 hours.`
+    };
+
+    console.log('📧 Sending password setup link to:', userDetails.email);
+    return sendWebhook(WEBHOOK_PASSWORD_SETUP_LINK, data);
+}
+
+/**
+ * Notify staff and manager of assignment change
+ */
+async function notifyManagerAssignment(assignmentDetails) {
+    const data = {
+        staffFirstName: assignmentDetails.staffFirstName,
+        staffLastName: assignmentDetails.staffLastName,
+        staffEmail: assignmentDetails.staffEmail,
+        managerFirstName: assignmentDetails.managerFirstName,
+        managerLastName: assignmentDetails.managerLastName,
+        managerEmail: assignmentDetails.managerEmail,
+        previousManager: assignmentDetails.previousManager || 'Unassigned',
+        adminEmail: ADMIN_EMAIL,
+        message: `${assignmentDetails.staffFirstName} ${assignmentDetails.staffLastName} has been assigned to ${assignmentDetails.managerFirstName} ${assignmentDetails.managerLastName}.`
+    };
+
+    console.log('📧 Sending manager assignment notification for:', assignmentDetails.staffEmail);
+    return sendWebhook(WEBHOOK_MANAGER_ASSIGNMENT, data);
+}
+
+/**
+ * Send password reset link to user (secure token-based)
+ */
+async function notifyPasswordResetLink(userDetails) {
+    const data = {
+        firstName: userDetails.firstName,
+        lastName: userDetails.lastName,
+        email: userDetails.email,
+        username: userDetails.username,
+        resetLink: userDetails.resetLink,
+        expiresIn: '1 hour',
+        adminEmail: ADMIN_EMAIL,
+        message: `Click the link below to reset your password. This link expires in 1 hour.`
+    };
+
+    console.log('📧 Sending password reset link to:', userDetails.email);
+    return sendWebhook(WEBHOOK_PASSWORD_RESET_LINK, data);
+}
+
+// ==================== ASSIGNMENT APPROVAL WEBHOOKS ====================
+
+const WEBHOOK_ASSIGNMENT_REQUEST = process.env.WEBHOOK_ASSIGNMENT_REQUEST;
+const WEBHOOK_ASSIGNMENT_APPROVED = process.env.WEBHOOK_ASSIGNMENT_APPROVED;
+const WEBHOOK_ASSIGNMENT_REJECTED = process.env.WEBHOOK_ASSIGNMENT_REJECTED;
+
+/**
+ * Send assignment request to new manager for approval
+ */
+async function notifyAssignmentRequest(details) {
+    const data = {
+        staffFirstName: details.staffFirstName,
+        staffLastName: details.staffLastName,
+        staffEmail: details.staffEmail,
+        staffRole: details.staffRole,
+        staffDepartment: details.staffDepartment || 'Not assigned',
+        managerFirstName: details.managerFirstName,
+        managerLastName: details.managerLastName,
+        managerEmail: details.managerEmail,
+        previousManager: details.previousManager || 'None',
+        approveLink: details.approveLink,
+        rejectLink: details.rejectLink,
+        expiresIn: '48 hours',
+        adminEmail: ADMIN_EMAIL,
+        message: `You have been requested to manage ${details.staffFirstName} ${details.staffLastName}. Please approve or reject this assignment.`
+    };
+
+    console.log('📧 Sending assignment request to manager:', details.managerEmail);
+    return sendWebhook(WEBHOOK_ASSIGNMENT_REQUEST, data);
+}
+
+/**
+ * Notify staff and admin that assignment was approved
+ */
+async function notifyAssignmentApproved(details) {
+    const data = {
+        staffFirstName: details.staffFirstName,
+        staffLastName: details.staffLastName,
+        staffEmail: details.staffEmail,
+        managerFirstName: details.managerFirstName,
+        managerLastName: details.managerLastName,
+        managerEmail: details.managerEmail,
+        adminEmail: ADMIN_EMAIL,
+        message: `${details.managerFirstName} ${details.managerLastName} has approved the assignment of ${details.staffFirstName} ${details.staffLastName}.`
+    };
+
+    console.log('📧 Sending assignment approved notification');
+    return sendWebhook(WEBHOOK_ASSIGNMENT_APPROVED, data);
+}
+
+/**
+ * Notify staff and admin that assignment was rejected
+ */
+async function notifyAssignmentRejected(details) {
+    const data = {
+        staffFirstName: details.staffFirstName,
+        staffLastName: details.staffLastName,
+        staffEmail: details.staffEmail,
+        managerFirstName: details.managerFirstName,
+        managerLastName: details.managerLastName,
+        managerEmail: details.managerEmail,
+        rejectionReason: details.rejectionReason || 'No reason provided',
+        adminEmail: ADMIN_EMAIL,
+        message: `${details.managerFirstName} ${details.managerLastName} has declined the assignment of ${details.staffFirstName} ${details.staffLastName}.`
+    };
+
+    console.log('📧 Sending assignment rejected notification');
+    return sendWebhook(WEBHOOK_ASSIGNMENT_REJECTED, data);
+}
+
+/**
+ * Notify previous manager that their staff is being reassigned
+ */
+async function notifyPreviousManagerReassignment(details) {
+    const data = {
+        staffFirstName: details.staffFirstName,
+        staffLastName: details.staffLastName,
+        previousManagerFirstName: details.previousManagerFirstName,
+        previousManagerLastName: details.previousManagerLastName,
+        previousManagerEmail: details.previousManagerEmail,
+        newManagerFirstName: details.newManagerFirstName,
+        newManagerLastName: details.newManagerLastName,
+        adminEmail: ADMIN_EMAIL,
+        message: `${details.staffFirstName} ${details.staffLastName} is being reassigned to ${details.newManagerFirstName} ${details.newManagerLastName}.`
+    };
+
+    console.log('📧 Notifying previous manager of reassignment:', details.previousManagerEmail);
+    // Reuse manager assignment webhook for this
+    return sendWebhook(WEBHOOK_MANAGER_ASSIGNMENT, data);
+}
+
 module.exports = {
     notifyNewRequest,
     notifyApproved,
@@ -219,5 +394,15 @@ module.exports = {
     notifyExtensionApproved,
     notifyExtensionRejected,
     notifyManagerExtension,
-    notifyPasswordReset
+    notifyPasswordReset,
+    // Account & Password webhooks
+    notifyAccountCreated,
+    notifyPasswordSetupLink,
+    notifyManagerAssignment,
+    notifyPasswordResetLink,
+    // Assignment approval webhooks
+    notifyAssignmentRequest,
+    notifyAssignmentApproved,
+    notifyAssignmentRejected,
+    notifyPreviousManagerReassignment
 };

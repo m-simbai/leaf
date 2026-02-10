@@ -3,9 +3,10 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const { ApplicationSession } = require('@esri/arcgis-rest-auth');
-const { queryFeatures, addFeatures, updateFeatures } = require('@esri/arcgis-rest-feature-layer');
+const { request } = require('@esri/arcgis-rest-request');
+const { queryFeatures, addFeatures, updateFeatures, deleteFeatures } = require('@esri/arcgis-rest-feature-layer');
 const crypto = require('crypto');
-const { notifyNewRequest, notifyApproved, notifyRejected, notifyEarlyCheckin, notifyExtensionRequest, notifyExtensionApproved, notifyExtensionRejected, notifyManagerExtension, notifyPasswordReset } = require('./services/webhookService');
+const { notifyNewRequest, notifyApproved, notifyRejected, notifyEarlyCheckin, notifyExtensionRequest, notifyExtensionApproved, notifyExtensionRejected, notifyManagerExtension, notifyPasswordReset, notifyAccountCreated, notifyPasswordSetupLink, notifyManagerAssignment, notifyPasswordResetLink, notifyAssignmentRequest, notifyAssignmentApproved, notifyAssignmentRejected, notifyPreviousManagerReassignment } = require('./services/webhookService');
 const { calculateProjectedSchedule, getCycleStatus, getLeaveTypeColor, YEARLY_SICK_DAYS, YEARLY_COMPASSIONATE_DAYS } = require('./services/cycleService');
 
 const app = express();
@@ -13,6 +14,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// Log the Service URL being used
+console.log('----------------------------------------------------------------');
+console.log('🔌 Connected to Feature Service:');
+console.log('   ' + process.env.LEAVE_TRACKER_SERVICE_URL);
+console.log('----------------------------------------------------------------');
 
 // Table URLs from environment
 const EMPLOYEES_URL = process.env.EMPLOYEES_TABLE_URL;
@@ -22,13 +29,71 @@ const DEPARTMENTS_URL = process.env.DEPARTMENTS_TABLE_URL;
 // ApplicationSession for OAuth 2.0 Client Credentials Flow
 let session = null;
 
+// Custom UserSession to handle username/password auth directly
+class CustomUserSession {
+    constructor(username, password) {
+        this.username = username;
+        this.password = password;
+        this.token = null;
+        this.expires = 0;
+    }
+
+    async getToken(url) {
+        // Return cached token if valid (with 1 min buffer)
+        if (this.token && Date.now() < (this.expires - 60000)) {
+            return this.token;
+        }
+        
+        console.log('🔐 Requesting new ArcGIS token for user:', this.username);
+        try {
+            const response = await fetch('https://www.arcgis.com/sharing/rest/generateToken', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    username: this.username,
+                    password: this.password,
+                    client: 'referer',
+                    referer: 'https://www.arcgis.com',
+                    expiration: 60, // minutes
+                    f: 'json'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('❌ Token generation failed:', data.error.message);
+                throw new Error(data.error.message);
+            }
+            
+            this.token = data.token;
+            this.expires = data.expires; 
+            console.log('✅ Token obtained successfully');
+            return this.token;
+        } catch (error) {
+            console.error('Network error requesting token:', error);
+            throw error;
+        }
+    }
+}
+
 function getSession() {
     if (!session) {
-        session = new ApplicationSession({
-            clientId: process.env.ARCGIS_CLIENT_ID,
-            clientSecret: process.env.ARCGIS_CLIENT_SECRET
-        });
-        console.log('ArcGIS ApplicationSession initialized');
+        // Prioritize User Authentication if credentials are provided
+        if (process.env.ARCGIS_USERNAME && process.env.ARCGIS_PASSWORD) {
+            session = new CustomUserSession(
+                process.env.ARCGIS_USERNAME,
+                process.env.ARCGIS_PASSWORD
+            );
+            console.log(`Initialized CustomUserSession for ${process.env.ARCGIS_USERNAME}`);
+        } else {
+            // Fallback to Application Credentials
+            session = new ApplicationSession({
+                clientId: process.env.ARCGIS_CLIENT_ID,
+                clientSecret: process.env.ARCGIS_CLIENT_SECRET
+            });
+            console.log('Initialized ApplicationSession (Client ID/Secret)');
+        }
     }
     return session;
 }
@@ -36,6 +101,15 @@ function getSession() {
 // Simple password hashing (in production use bcrypt)
 function hashPassword(password) {
     return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+// Strong password validation: 8+ chars, uppercase, number, special char
+function validateStrongPassword(password) {
+    if (!password || password.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+    if (!/\d/.test(password)) return 'Password must contain at least one number';
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return 'Password must contain at least one special character';
+    return null; // Valid
 }
 
 // Helper: Get employee email by EmployeeID
@@ -356,7 +430,7 @@ app.post('/api/auth/verify-password', async (req, res) => {
     }
 });
 
-// Forgot password endpoint
+// Forgot password endpoint - now generates secure reset token
 app.post('/api/auth/forgot-password', async (req, res) => {
     try {
         const { username } = req.body;
@@ -367,34 +441,56 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
         const authentication = getSession();
         
-        // Sanitize username to prevent SQL injection (simple escape for single quotes)
+        // Sanitize username to prevent SQL injection
         const sanitizedUsername = username.replace(/'/g, "''");
         
         // Query employees table to find user
         const response = await queryFeatures({
             url: EMPLOYEES_URL,
             where: `Username = '${sanitizedUsername}'`,
-            outFields: 'Username,Email',
+            outFields: 'OBJECTID,Username,Email,FirstName,LastName',
             returnGeometry: false,
             authentication
         });
 
-        // Always return success to prevent username enumeration, but send webhook if found
         if (response.features && response.features.length > 0) {
             const employee = response.features[0].attributes;
             
-            // Send webhook notification to admin
-            await notifyPasswordReset({
+            // Generate reset token (1 hour expiry)
+            const resetToken = crypto.randomBytes(32).toString('hex');
+            const resetTokenExpiry = Date.now() + (60 * 60 * 1000); // 1 hour
+            
+            // Store token in database
+            await updateFeatures({
+                url: EMPLOYEES_URL,
+                features: [{
+                    attributes: {
+                        OBJECTID: employee.OBJECTID,
+                        ResetToken: resetToken,
+                        ResetTokenExpiry: resetTokenExpiry
+                    }
+                }],
+                authentication
+            });
+            
+            // Send reset link via webhook
+            const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
+            const resetLink = `${appBaseUrl}/reset-password?token=${resetToken}`;
+            
+            await notifyPasswordResetLink({
+                firstName: employee.FirstName,
+                lastName: employee.LastName,
+                email: employee.Email,
                 username: employee.Username,
-                employeeEmail: employee.Email || 'No email on file'
+                resetLink
             });
 
             res.json({ 
                 success: true, 
-                message: 'A password reset request has been sent to the administrator.' 
+                message: 'If an account exists with that username, a password reset link has been sent.' 
             });
         } else {
-             // User requested explicit feedback if username is not found
+            // User requested explicit feedback if username is not found
             return res.status(404).json({ error: 'Username not found. Please contact administrator.' });
         }
 
@@ -404,6 +500,361 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 });
 
+// Setup password (for new accounts via email link)
+app.post('/api/auth/setup-password', async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        
+        if (!token || !password) {
+            return res.status(400).json({ error: 'Token and password are required' });
+        }
+        
+        const passwordError = validateStrongPassword(password);
+        if (passwordError) {
+            return res.status(400).json({ error: passwordError });
+        }
+
+        const authentication = getSession();
+        
+        // Find user with this setup token
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `SetupToken = '${token}'`,
+            outFields: 'OBJECTID,SetupTokenExpiry,Username',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (!response.features || response.features.length === 0) {
+            return res.status(400).json({ error: 'Invalid or expired setup link' });
+        }
+
+        const user = response.features[0].attributes;
+        
+        // Check if token is expired
+        if (user.SetupTokenExpiry && user.SetupTokenExpiry < Date.now()) {
+            return res.status(400).json({ error: 'Setup link has expired. Please contact administrator.' });
+        }
+
+        // Update password and clear token
+        const result = await updateFeatures({
+            url: EMPLOYEES_URL,
+            features: [{
+                attributes: {
+                    OBJECTID: user.OBJECTID,
+                    PasswordHash: hashPassword(password),
+                    SetupToken: null,
+                    SetupTokenExpiry: null,
+                    PasswordSet: 1
+                }
+            }],
+            authentication
+        });
+
+        if (result.updateResults?.[0]?.success) {
+            res.json({ 
+                success: true, 
+                message: 'Password set successfully! You can now log in.',
+                username: user.Username
+            });
+        } else {
+            throw new Error('Failed to set password');
+        }
+
+    } catch (error) {
+        console.error('Setup password error:', error);
+        res.status(500).json({ error: 'Failed to set password' });
+    }
+});
+
+// Reset password (via email link)
+app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        
+        if (!token || !password) {
+            return res.status(400).json({ error: 'Token and password are required' });
+        }
+        
+        const passwordError = validateStrongPassword(password);
+        if (passwordError) {
+            return res.status(400).json({ error: passwordError });
+        }
+
+        const authentication = getSession();
+        
+        // Find user with this reset token
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `ResetToken = '${token}'`,
+            outFields: 'OBJECTID,ResetTokenExpiry,Username',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (!response.features || response.features.length === 0) {
+            return res.status(400).json({ error: 'Invalid or expired reset link' });
+        }
+
+        const user = response.features[0].attributes;
+        
+        // Check if token is expired
+        if (user.ResetTokenExpiry && user.ResetTokenExpiry < Date.now()) {
+            return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
+        }
+
+        // Update password and clear token
+        const result = await updateFeatures({
+            url: EMPLOYEES_URL,
+            features: [{
+                attributes: {
+                    OBJECTID: user.OBJECTID,
+                    PasswordHash: hashPassword(password),
+                    ResetToken: null,
+                    ResetTokenExpiry: null
+                }
+            }],
+            authentication
+        });
+
+        if (result.updateResults?.[0]?.success) {
+            res.json({ 
+                success: true, 
+                message: 'Password reset successfully! You can now log in.',
+                username: user.Username
+            });
+        } else {
+            throw new Error('Failed to reset password');
+        }
+
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ error: 'Failed to reset password' });
+    }
+});
+
+// Validate setup token (for frontend to check if token is valid before showing form)
+app.get('/api/auth/validate-setup-token/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const authentication = getSession();
+        
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `SetupToken = '${token}'`,
+            outFields: 'SetupTokenExpiry,FirstName,LastName',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (!response.features || response.features.length === 0) {
+            return res.status(400).json({ valid: false, error: 'Invalid setup link' });
+        }
+
+        const user = response.features[0].attributes;
+        
+        if (user.SetupTokenExpiry && user.SetupTokenExpiry < Date.now()) {
+            return res.status(400).json({ valid: false, error: 'Setup link has expired' });
+        }
+
+        res.json({ 
+            valid: true, 
+            firstName: user.FirstName,
+            lastName: user.LastName
+        });
+
+    } catch (error) {
+        console.error('Validate setup token error:', error);
+        res.status(500).json({ valid: false, error: 'Validation failed' });
+    }
+});
+
+// Validate reset token
+app.get('/api/auth/validate-reset-token/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const authentication = getSession();
+        
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `ResetToken = '${token}'`,
+            outFields: 'ResetTokenExpiry,FirstName,LastName',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (!response.features || response.features.length === 0) {
+            return res.status(400).json({ valid: false, error: 'Invalid reset link' });
+        }
+
+        const user = response.features[0].attributes;
+        
+        if (user.ResetTokenExpiry && user.ResetTokenExpiry < Date.now()) {
+            return res.status(400).json({ valid: false, error: 'Reset link has expired' });
+        }
+
+        res.json({ 
+            valid: true, 
+            firstName: user.FirstName,
+            lastName: user.LastName
+        });
+
+    } catch (error) {
+        console.error('Validate reset token error:', error);
+        res.status(500).json({ valid: false, error: 'Validation failed' });
+    }
+});
+
+// ==================== ASSIGNMENT APPROVAL ENDPOINTS ====================
+
+// Approve assignment via email token link
+app.get('/api/auth/approve-assignment/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const authentication = getSession();
+        const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
+        
+        // Find staff with this assignment token
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `AssignmentToken = '${token}'`,
+            outFields: 'OBJECTID,FirstName,LastName,Email,PendingManagerID,AssignmentTokenExpiry,EmployeeID',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (!response.features || response.features.length === 0) {
+            return res.redirect(`${APP_BASE_URL}/assignment-result?status=invalid`);
+        }
+
+        const staff = response.features[0].attributes;
+        
+        // Check token expiry
+        if (staff.AssignmentTokenExpiry && staff.AssignmentTokenExpiry < Date.now()) {
+            return res.redirect(`${APP_BASE_URL}/assignment-result?status=expired`);
+        }
+
+        // Get manager details
+        const managerResponse = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `EmployeeID = '${staff.PendingManagerID}'`,
+            outFields: 'FirstName,LastName,Email',
+            returnGeometry: false,
+            authentication
+        });
+
+        const manager = managerResponse.features?.[0]?.attributes || {};
+
+        // Update: set ManagerID = PendingManagerID, clear pending fields
+        await updateFeatures({
+            url: EMPLOYEES_URL,
+            features: [{
+                attributes: {
+                    OBJECTID: staff.OBJECTID,
+                    ManagerID: staff.PendingManagerID,
+                    PendingManagerID: null,
+                    AssignmentToken: null,
+                    AssignmentTokenExpiry: null,
+                    AssignmentStatus: 'approved'
+                }
+            }],
+            authentication
+        });
+
+        // Send approval notifications
+        notifyAssignmentApproved({
+            staffFirstName: staff.FirstName,
+            staffLastName: staff.LastName,
+            staffEmail: staff.Email,
+            managerFirstName: manager.FirstName,
+            managerLastName: manager.LastName,
+            managerEmail: manager.Email
+        }).catch(err => console.error('Assignment approved webhook error:', err));
+
+        console.log(`✅ Assignment approved: ${staff.FirstName} ${staff.LastName} -> ${manager.FirstName} ${manager.LastName}`);
+        res.redirect(`${APP_BASE_URL}/assignment-result?status=approved&staff=${encodeURIComponent(staff.FirstName)}`);
+
+    } catch (error) {
+        console.error('Approve assignment error:', error);
+        const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
+        res.redirect(`${APP_BASE_URL}/assignment-result?status=error`);
+    }
+});
+
+// Reject assignment via email token link
+app.get('/api/auth/reject-assignment/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const reason = req.query.reason || '';
+        const authentication = getSession();
+        const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
+        
+        // Find staff with this assignment token
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `AssignmentToken = '${token}'`,
+            outFields: 'OBJECTID,FirstName,LastName,Email,PendingManagerID,AssignmentTokenExpiry',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (!response.features || response.features.length === 0) {
+            return res.redirect(`${APP_BASE_URL}/assignment-result?status=invalid`);
+        }
+
+        const staff = response.features[0].attributes;
+        
+        // Check token expiry
+        if (staff.AssignmentTokenExpiry && staff.AssignmentTokenExpiry < Date.now()) {
+            return res.redirect(`${APP_BASE_URL}/assignment-result?status=expired`);
+        }
+
+        // Get manager details
+        const managerResponse = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `EmployeeID = '${staff.PendingManagerID}'`,
+            outFields: 'FirstName,LastName,Email',
+            returnGeometry: false,
+            authentication
+        });
+
+        const manager = managerResponse.features?.[0]?.attributes || {};
+
+        // Clear pending fields, set status to rejected
+        await updateFeatures({
+            url: EMPLOYEES_URL,
+            features: [{
+                attributes: {
+                    OBJECTID: staff.OBJECTID,
+                    PendingManagerID: null,
+                    AssignmentToken: null,
+                    AssignmentTokenExpiry: null,
+                    AssignmentStatus: 'rejected'
+                }
+            }],
+            authentication
+        });
+
+        // Send rejection notifications
+        notifyAssignmentRejected({
+            staffFirstName: staff.FirstName,
+            staffLastName: staff.LastName,
+            staffEmail: staff.Email,
+            managerFirstName: manager.FirstName,
+            managerLastName: manager.LastName,
+            managerEmail: manager.Email,
+            rejectionReason: reason
+        }).catch(err => console.error('Assignment rejected webhook error:', err));
+
+        console.log(`❌ Assignment rejected: ${staff.FirstName} ${staff.LastName} by ${manager.FirstName} ${manager.LastName}`);
+        res.redirect(`${APP_BASE_URL}/assignment-result?status=rejected&staff=${encodeURIComponent(staff.FirstName)}`);
+
+    } catch (error) {
+        console.error('Reject assignment error:', error);
+        const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
+        res.redirect(`${APP_BASE_URL}/assignment-result?status=error`);
+    }
+});
 
 
 // Get current user's leave balance
@@ -1863,8 +2314,9 @@ app.post('/api/admin/users', async (req, res) => {
     try {
         const { firstName, lastName, email, username, password, role, department, managerId } = req.body;
 
-        if (!firstName || !lastName || !email || !username || !password || !role) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        // Password is now optional - if not provided, user will set via email link
+        if (!firstName || !lastName || !email || !username || !role) {
+            return res.status(400).json({ error: 'Missing required fields (firstName, lastName, email, username, role)' });
         }
 
         const authentication = getSession();
@@ -1884,6 +2336,11 @@ app.post('/api/admin/users', async (req, res) => {
 
         // Generate EmployeeID
         const employeeId = `EMP${Date.now()}`;
+        
+        // Generate setup token if no password provided
+        const setupToken = password ? null : crypto.randomBytes(32).toString('hex');
+        const setupTokenExpiry = password ? null : Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+        const passwordSet = password ? 1 : 0;
 
         // Create user
         const result = await addFeatures({
@@ -1892,7 +2349,7 @@ app.post('/api/admin/users', async (req, res) => {
                 attributes: {
                     EmployeeID: employeeId,
                     Username: username,
-                    PasswordHash: hashPassword(password),
+                    PasswordHash: password ? hashPassword(password) : null,
                     FirstName: firstName,
                     LastName: lastName,
                     Email: email,
@@ -1902,18 +2359,56 @@ app.post('/api/admin/users', async (req, res) => {
                     IsActive: 1,
                     AnnualLeaveBalance: 0,
                     SickLeaveBalance: 90,
-                    OtherLeaveBalance: 10
+                    OtherLeaveBalance: 10,
+                    SetupToken: setupToken,
+                    SetupTokenExpiry: setupTokenExpiry,
+                    PasswordSet: passwordSet
                 }
             }],
             authentication
         });
 
         if (result.addResults?.[0]?.success) {
+            const objectId = result.addResults[0].objectId;
+            
+            // Send notifications (async, don't block response)
+            (async () => {
+                try {
+                    // Send account created notification
+                    await notifyAccountCreated({
+                        firstName,
+                        lastName,
+                        email,
+                        username,
+                        role,
+                        department
+                    });
+                    
+                    // If no password set, send setup link
+                    if (!password && setupToken) {
+                        const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
+                        const setupLink = `${appBaseUrl}/setup-password?token=${setupToken}`;
+                        
+                        await notifyPasswordSetupLink({
+                            firstName,
+                            lastName,
+                            email,
+                            username,
+                            setupLink
+                        });
+                        console.log('📧 Password setup link sent to:', email);
+                    }
+                } catch (err) {
+                    console.error('Webhook notification failed:', err);
+                }
+            })();
+            
             res.json({ 
                 success: true, 
-                message: 'User created successfully',
-                userId: result.addResults[0].objectId,
-                employeeId
+                message: password ? 'User created successfully' : 'User created. Password setup email sent.',
+                userId: objectId,
+                employeeId,
+                passwordSetupRequired: !password
             });
         } else {
             throw new Error('Failed to create user');
@@ -1924,6 +2419,7 @@ app.post('/api/admin/users', async (req, res) => {
     }
 });
 
+
 // Update user
 app.put('/api/admin/users/:objectId', async (req, res) => {
     try {
@@ -1931,6 +2427,21 @@ app.put('/api/admin/users/:objectId', async (req, res) => {
         const { firstName, lastName, email, role, department, managerId, isActive, username } = req.body;
 
         const authentication = getSession();
+        
+        // Get current user data to detect manager changes
+        let previousManagerId = null;
+        let staffData = null;
+        if (managerId !== undefined) {
+            const currentUser = await queryFeatures({
+                url: EMPLOYEES_URL,
+                where: `OBJECTID = ${objectId}`,
+                outFields: 'ManagerID,FirstName,LastName,Email',
+                returnGeometry: false,
+                authentication
+            });
+            staffData = currentUser.features?.[0]?.attributes;
+            previousManagerId = staffData?.ManagerID;
+        }
 
         const updateAttrs = { OBJECTID: parseInt(objectId) };
         if (firstName !== undefined) updateAttrs.FirstName = firstName;
@@ -1949,6 +2460,54 @@ app.put('/api/admin/users/:objectId', async (req, res) => {
         });
 
         if (result.updateResults?.[0]?.success) {
+            // Send manager assignment notification if manager changed
+            if (managerId !== undefined && managerId !== previousManagerId && managerId) {
+                (async () => {
+                    try {
+                        // Get new manager's details
+                        const managerQuery = await queryFeatures({
+                            url: EMPLOYEES_URL,
+                            where: `EmployeeID = '${managerId}'`,
+                            outFields: 'FirstName,LastName,Email',
+                            returnGeometry: false,
+                            authentication
+                        });
+                        const newManager = managerQuery.features?.[0]?.attributes;
+                        
+                        // Get previous manager name (if exists)
+                        let previousManagerName = 'Unassigned';
+                        if (previousManagerId) {
+                            const prevQuery = await queryFeatures({
+                                url: EMPLOYEES_URL,
+                                where: `EmployeeID = '${previousManagerId}'`,
+                                outFields: 'FirstName,LastName',
+                                returnGeometry: false,
+                                authentication
+                            });
+                            const prevMgr = prevQuery.features?.[0]?.attributes;
+                            if (prevMgr) {
+                                previousManagerName = `${prevMgr.FirstName} ${prevMgr.LastName}`;
+                            }
+                        }
+                        
+                        if (newManager && staffData) {
+                            await notifyManagerAssignment({
+                                staffFirstName: firstName || staffData.FirstName,
+                                staffLastName: lastName || staffData.LastName,
+                                staffEmail: email || staffData.Email,
+                                managerFirstName: newManager.FirstName,
+                                managerLastName: newManager.LastName,
+                                managerEmail: newManager.Email,
+                                previousManager: previousManagerName
+                            });
+                            console.log('📧 Manager assignment notification sent');
+                        }
+                    } catch (err) {
+                        console.error('Manager assignment notification failed:', err);
+                    }
+                })();
+            }
+            
             res.json({ success: true, message: 'User updated successfully' });
         } else {
             throw new Error('Failed to update user');
@@ -1965,8 +2524,9 @@ app.put('/api/admin/users/:objectId/reset-password', async (req, res) => {
         const { objectId } = req.params;
         const { newPassword } = req.body;
 
-        if (!newPassword || newPassword.length < 4) {
-            return res.status(400).json({ error: 'Password must be at least 4 characters' });
+        const passwordError = validateStrongPassword(newPassword);
+        if (passwordError) {
+            return res.status(400).json({ error: passwordError });
         }
 
         const authentication = getSession();
@@ -2019,6 +2579,35 @@ app.delete('/api/admin/users/:objectId', async (req, res) => {
     } catch (error) {
         console.error('Error deleting user:', error);
         res.status(500).json({ error: error.message || 'Failed to delete user' });
+    }
+});
+
+// Permanently delete user (hard delete - removes record entirely)
+app.delete('/api/admin/users/:objectId/permanent', async (req, res) => {
+    try {
+        const { objectId } = req.params;
+        const authentication = getSession();
+
+        // Permanently delete the feature using request directly to avoid client-side validation issues
+        // deleteFeatures() was failing with "Change the alias to a valid name"
+        const response = await request(`${EMPLOYEES_URL}/applyEdits`, {
+            params: {
+                deletes: [parseInt(objectId)],
+                f: 'json'
+            },
+            authentication,
+            httpMethod: 'POST'
+        });
+
+        if (response.deleteResults?.[0]?.success) {
+            res.json({ success: true, message: 'User permanently deleted' });
+        } else {
+            console.error('Permanent Delete Failed:', JSON.stringify(response, null, 2));
+            throw new Error('Failed to permanently delete user');
+        }
+    } catch (error) {
+        console.error('Error permanently deleting user:', error);
+        res.status(500).json({ error: error.message || 'Failed to permanently delete user' });
     }
 });
 

@@ -13,6 +13,10 @@ function AdminLogin({ onLogin }) {
   useEffect(() => {
     document.body.classList.toggle('dark-mode', isDarkMode)
     document.body.classList.toggle('light-mode', !isDarkMode)
+    // Cleanup: remove body classes when component unmounts (e.g., after login)
+    return () => {
+      document.body.classList.remove('dark-mode', 'light-mode')
+    }
   }, [isDarkMode])
 
   const handleSubmit = async (e) => {
