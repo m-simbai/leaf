@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import './SetupPassword.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 export default function SetupPassword() {
   const token = new URLSearchParams(window.location.search).get('token')
