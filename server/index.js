@@ -475,13 +475,16 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
         if (response.features && response.features.length > 0) {
             const employee = response.features[0].attributes;
+            console.log(`📧 Found user for password reset: ${employee.Username} (OID: ${employee.OBJECTID})`);
             
             // Generate reset token (1 hour expiry)
             const resetToken = crypto.randomBytes(32).toString('hex');
             const resetTokenExpiry = Date.now() + (60 * 60 * 1000); // 1 hour
             
+            console.log(`🆕 Generated ResetToken: ${resetToken.substring(0, 8)}...`);
+
             // Store token in database
-            await updateFeatures({
+            const updateResult = await updateFeatures({
                 url: EMPLOYEES_URL,
                 features: [{
                     attributes: {
@@ -492,6 +495,12 @@ app.post('/api/auth/forgot-password', async (req, res) => {
                 }],
                 authentication
             });
+            
+            if (updateResult.updateResults && updateResult.updateResults[0].success) {
+                console.log('✅ ResetToken saved successfully to database');
+            } else {
+                console.error('❌ Failed to save ResetToken to database:', JSON.stringify(updateResult.updateResults, null, 2));
+            }
             
             // Send reset link via webhook
             const appBaseUrl = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
@@ -510,7 +519,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
                 message: 'If an account exists with that username, a password reset link has been sent.' 
             });
         } else {
-            // User requested explicit feedback if username is not found
+            console.warn(`⚠️ Password reset requested for non-existent username: ${username}`);
             return res.status(404).json({ error: 'Username not found. Please contact administrator.' });
         }
 
@@ -524,17 +533,19 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 app.get('/api/auth/validate-setup-token/:token', async (req, res) => {
     try {
         const { token } = req.params;
+        console.log(`🔍 Validating SetupToken: ${token.substring(0, 8)}...`);
         const authentication = getSession();
 
         const response = await queryFeatures({
             url: EMPLOYEES_URL,
             where: `SetupToken = '${token}'`,
-            outFields: 'SetupTokenExpiry,FirstName,LastName',
+            outFields: 'SetupTokenExpiry,FirstName,LastName,Username',
             returnGeometry: false,
             authentication
         });
 
         if (!response.features || response.features.length === 0) {
+            console.warn(`❌ SetupToken not found: ${token.substring(0, 8)}...`);
             return res.json({ valid: false, error: 'Invalid setup link' });
         }
 
@@ -560,17 +571,19 @@ app.get('/api/auth/validate-setup-token/:token', async (req, res) => {
 app.get('/api/auth/validate-reset-token/:token', async (req, res) => {
     try {
         const { token } = req.params;
+        console.log(`🔍 Validating ResetToken: ${token.substring(0, 8)}...`);
         const authentication = getSession();
 
         const response = await queryFeatures({
             url: EMPLOYEES_URL,
             where: `ResetToken = '${token}'`,
-            outFields: 'ResetTokenExpiry,FirstName,LastName',
+            outFields: 'ResetTokenExpiry,FirstName,LastName,Username',
             returnGeometry: false,
             authentication
         });
 
         if (!response.features || response.features.length === 0) {
+            console.warn(`❌ ResetToken not found: ${token.substring(0, 8)}...`);
             return res.json({ valid: false, error: 'Invalid reset link' });
         }
 
@@ -644,13 +657,15 @@ app.post('/api/auth/setup-password', async (req, res) => {
         });
 
         if (result.updateResults?.[0]?.success) {
+            console.log(`✅ Password set successfully for user: ${user.Username}`);
             res.json({ 
                 success: true, 
                 message: 'Password set successfully! You can now log in.',
                 username: user.Username
             });
         } else {
-            throw new Error('Failed to set password');
+            console.error('❌ Failed to update password in database:', JSON.stringify(result.updateResults, null, 2));
+            res.status(500).json({ error: 'Failed to update password' });
         }
 
     } catch (error) {
@@ -3145,6 +3160,46 @@ app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
 });
 
+
+
+// ==================== DIAGNOSTIC ENDPOINTS ====================
+
+app.get('/api/diag/check-user/:username', async (req, res) => {
+    try {
+        const { username } = req.params;
+        const authentication = getSession();
+        
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `Username = '${username.replace(/'/g, "''")}'`,
+            outFields: 'OBJECTID,Username,Email,FirstName,LastName,ResetToken,ResetTokenExpiry,SetupToken,SetupTokenExpiry,PasswordSet',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (response.features && response.features.length > 0) {
+            const user = response.features[0].attributes;
+            const now = Date.now();
+            
+            res.json({
+                found: true,
+                user: {
+                    ...user,
+                    ResetToken_Prefix: user.ResetToken ? user.ResetToken.substring(0, 8) + '...' : 'null',
+                    SetupToken_Prefix: user.SetupToken ? user.SetupToken.substring(0, 8) + '...' : 'null',
+                    Is_Reset_Expired: user.ResetTokenExpiry ? now > user.ResetTokenExpiry : 'n/a',
+                    Is_Setup_Expired: user.SetupTokenExpiry ? now > user.SetupTokenExpiry : 'n/a',
+                    Server_Time: now,
+                    Server_Time_UTC: new Date(now).toUTCString()
+                }
+            });
+        } else {
+            res.status(404).json({ found: false, message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // Start Server
 app.listen(PORT, () => {
