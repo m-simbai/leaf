@@ -1,0 +1,11 @@
+--- RECENT REJECTED REQUESTS ---
+OBJECTID: 9 | EmployeeID: EMP1770878943547 | Name: Test User | Status: rejected
+  - Resolved Email: simbaimutematemi@gmail.com
+OBJECTID: 8 | EmployeeID: EMP1770878943547 | Name: Test User | Status: rejected
+  - Resolved Email: simbaimutematemi@gmail.com
+OBJECTID: 7 | EmployeeID: EMP1770878943547 | Name: Test User | Status: rejected
+  - Resolved Email: simbaimutematemi@gmail.com
+OBJECTID: 6 | EmployeeID: EMP_ADMIN_01 | Name: Simbai Mutematemi | Status: rejected
+  - Resolved Email: simbaimutematemi@gmail.com
+OBJECTID: 5 | EmployeeID: EMP1770878943547 | Name: Test User | Status: rejected
+  - Resolved Email: simbaimutematemi@gmail.com

@@ -1,5 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap');
+
 :root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Brand Palette */
+  --color-red-sand: #994221;
+  --color-mopane: #162518;
+  --color-lichen: #a3a78e;
+  --color-moss: #697559;
+  --color-beige: #d8ccb7;
+  --color-white: #ffffff;
+  --color-off-white: #fdfbf7; /* Slightly lighter than beige for backgrounds */
+
+  /* Semantic Colors */
+  --primary: var(--color-mopane);
+  --primary-light: var(--color-moss);
+  --accent: var(--color-red-sand);
+  --secondary: var(--color-lichen);
+  
+  --bg-body: var(--color-off-white);
+  --bg-card: var(--color-white);
+  --text-main: var(--color-mopane);
+  --text-muted: var(--color-moss);
+  --border-light: var(--color-lichen);
+
+  /* Font */
+  font-family: 'Work Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -20,6 +44,8 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
+  background-color: var(--bg-body);
+  color: var(--text-main);
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -44,4 +70,5 @@ html::-webkit-scrollbar,
 a {
   font-weight: 500;
   text-decoration: inherit;
+  color: var(--accent);
 }

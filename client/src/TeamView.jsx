@@ -20,6 +20,7 @@ function TeamView({ leaves = [], user }) {
               firstName: attr.FirstName,
               lastName: attr.LastName,
               fullName: `${attr.FirstName} ${attr.LastName}`,
+              email: attr.Email,
               managerId: attr.ManagerID,
               role: attr.Role
             }))
@@ -68,7 +69,7 @@ function TeamView({ leaves = [], user }) {
           startDate,
           endDate,
           leaveType: attrs.LeaveType,
-          daysRequested: attrs.DaysRequested || Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1,
+          daysRequested: attrs.DaysRequested || attrs.Days || Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1,
           isCurrentlyActive: today >= startDate && today <= endDate,
           isUpcoming: today < startDate,
           isPast: today > endDate

@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import './SetupPassword.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function SetupPassword() {
-  const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
-  const token = searchParams.get('token')
+  const token = new URLSearchParams(window.location.search).get('token')
   
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -87,7 +84,7 @@ export default function SetupPassword() {
       
       if (data.success) {
         setSuccess(true)
-        setTimeout(() => navigate('/login'), 3000)
+        setTimeout(() => { window.location.href = '/login' }, 3000)
       } else {
         setError(data.error || 'Failed to set password')
       }
@@ -128,7 +125,7 @@ export default function SetupPassword() {
           <AlertCircle size={64} className="error-icon" />
           <h1>Invalid Setup Link</h1>
           <p>{error}</p>
-          <button onClick={() => navigate('/login')} className="btn-primary">
+          <button onClick={() => { window.location.href = '/login' }} className="btn-primary">
             Go to Login
           </button>
         </div>

@@ -1,27 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Remove Google Fonts import as it is in index.css now, but for safety we can leave or remove. Prefer remove to avoid dupes/conflicts if different params */
+/* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'); */
 
 :root {
-  /* Premium Light Theme Color Palette */
-  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  /* Mapped Variables for App-specific components */
+  --bg-dark: var(--bg-body); 
+  --bg-card: var(--color-white);
+  --bg-card-hover: var(--color-off-white);
+  --bg-input: var(--color-off-white);
+  --glass-border: var(--color-lichen);
   
-  --bg-dark: #f8fafc;
-  --bg-card: rgba(255, 255, 255, 0.9);
-  --bg-card-hover: rgba(255, 255, 255, 1);
-  --bg-input: #f1f5f9;
-  --glass-border: rgba(0, 0, 0, 0.08);
+  --text-primary: var(--color-mopane);
+  --text-secondary: var(--color-moss);
+  --text-muted: var(--color-lichen);
   
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
+  /* Semantic Mappings to Brand Palette */
+  --success: var(--color-moss);
+  --warning: var(--color-lichen); /* Pending/Warning */
+  --danger: var(--color-red-sand);
+  --info: var(--color-mopane);
   
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --info: #3b82f6;
+  --accent-gold: var(--color-red-sand);
   
-  --accent-gold: #667eea;
+  /* Gradients - STRICTLY Palette Colors */
+  --primary-gradient: linear-gradient(135deg, var(--color-mopane) 0%, var(--color-moss) 100%);
+  --secondary-gradient: linear-gradient(135deg, var(--color-moss) 0%, var(--color-lichen) 100%);
+  --accent-gradient: linear-gradient(135deg, var(--color-red-sand) 0%, var(--color-lichen) 100%);
 }
 
 * {
@@ -31,14 +34,12 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg-dark);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(102, 126, 234, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(118, 75, 162, 0.08) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(79, 172, 254, 0.05) 0px, transparent 50%);
+  font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-body);
+  /* Subtle texture or plain background */
+  background-image: none;
   min-height: 100vh;
-  color: var(--text-primary);
+  color: var(--text-main);
 }
 
 .container {
@@ -96,12 +97,12 @@ body {
 .btn-primary {
   background: var(--primary-gradient);
   color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 15px rgba(153, 66, 33, 0.2);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 6px 20px rgba(153, 66, 33, 0.2);
 }
 
 .btn-secondary {
@@ -154,10 +155,10 @@ body {
   margin-bottom: 16px;
 }
 
-.stat-icon.purple { background: var(--primary-gradient); }
-.stat-icon.pink { background: var(--secondary-gradient); }
-.stat-icon.blue { background: var(--accent-gradient); }
-.stat-icon.green { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); }
+.stat-icon.purple { background: var(--color-mopane); color: var(--color-white); }
+.stat-icon.pink { background: var(--color-red-sand); color: var(--color-white); }
+.stat-icon.blue { background: var(--color-moss); color: var(--color-white); }
+.stat-icon.green { background: var(--color-lichen); color: var(--color-mopane); }
 
 .stat-value {
   font-size: 2rem;
@@ -194,7 +195,7 @@ body {
 
 .record-count {
   background: rgba(102, 126, 234, 0.2);
-  color: #a78bfa;
+  color: var(--color-red-sand);
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 0.85rem;
@@ -282,18 +283,18 @@ body {
 }
 
 .status-active {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  background: rgba(105, 117, 89, 0.15); /* Moss opacity */
+  color: var(--color-moss);
 }
 
 .status-pending {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
+  background: rgba(163, 167, 142, 0.2); /* Lichen opacity */
+  color: var(--color-mopane);
 }
 
 .status-inactive {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+  background: rgba(153, 66, 33, 0.15); /* Red Sand opacity */
+  color: var(--color-red-sand);
 }
 
 /* Empty State */
@@ -328,9 +329,9 @@ body {
 
 /* Error Banner */
 .error-banner {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #f87171;
+  background: rgba(153, 66, 33, 0.1);
+  border: 1px solid rgba(153, 66, 33, 0.2);
+  color: var(--color-red-sand);
   padding: 16px 20px;
   border-radius: 12px;
   margin-bottom: 24px;

@@ -7,14 +7,7 @@
   padding: 20px;
   position: relative;
   overflow: hidden;
-}
-
-.admin-login-page.dark {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-}
-
-.admin-login-page.light {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+  background: var(--bg-body);
 }
 
 /* Animated background pattern */
@@ -26,36 +19,14 @@
   right: 0;
   bottom: 0;
   background-image: 
-    radial-gradient(circle at 20% 50%, rgba(22, 163, 74, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+    radial-gradient(circle at 20% 50%, rgba(163, 167, 142, 0.2) 0%, transparent 50%), /* Lichen */
+    radial-gradient(circle at 80% 50%, rgba(153, 66, 33, 0.1) 0%, transparent 50%); /* Red Sand */
   pointer-events: none;
 }
 
-/* Theme Toggle */
+/* Theme Toggle - HIDDEN per requirement */
 .theme-toggle {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-  z-index: 10;
-}
-
-.admin-login-page.dark .theme-toggle {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fbbf24;
-}
-
-.admin-login-page.light .theme-toggle {
-  background: rgba(0, 0, 0, 0.05);
-  color: #6366f1;
+  display: none !important;
 }
 
 /* Back Link */
@@ -67,18 +38,11 @@
   text-decoration: none;
   transition: all 0.2s;
   z-index: 10;
-}
-
-.admin-login-page.dark .back-link {
-  color: #94a3b8;
-}
-
-.admin-login-page.light .back-link {
-  color: #64748b;
+  color: var(--color-moss);
 }
 
 .back-link:hover {
-  color: #16a34a;
+  color: var(--color-red-sand);
 }
 
 /* Container */
@@ -90,18 +54,9 @@
   text-align: center;
   position: relative;
   z-index: 1;
-}
-
-.admin-login-page.dark .admin-login-container {
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
-}
-
-.admin-login-page.light .admin-login-container {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.1);
+  background: var(--color-white);
+  border: 1px solid var(--color-lichen);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.05); /* Softer shadow */
 }
 
 /* Admin Badge */
@@ -110,12 +65,12 @@
   height: 72px;
   margin: 0 auto 24px;
   border-radius: 20px;
-  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  background: linear-gradient(135deg, var(--color-moss) 0%, var(--color-mopane) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  box-shadow: 0 12px 30px rgba(22, 163, 74, 0.4);
+  box-shadow: 0 12px 30px rgba(22, 37, 24, 0.2);
 }
 
 /* Title */
@@ -123,27 +78,13 @@
   font-size: 1.75rem;
   font-weight: 700;
   margin-bottom: 8px;
-}
-
-.admin-login-page.dark h1 {
-  color: #f1f5f9;
-}
-
-.admin-login-page.light h1 {
-  color: #1e293b;
+  color: var(--color-mopane);
 }
 
 .subtitle {
   font-size: 0.95rem;
   margin-bottom: 32px;
-}
-
-.admin-login-page.dark .subtitle {
-  color: #94a3b8;
-}
-
-.admin-login-page.light .subtitle {
-  color: #64748b;
+  color: var(--color-moss);
 }
 
 /* Form */
@@ -164,14 +105,7 @@
   margin-bottom: 8px;
   font-size: 0.9rem;
   font-weight: 500;
-}
-
-.admin-login-page.dark .input-group label {
-  color: #cbd5e1;
-}
-
-.admin-login-page.light .input-group label {
-  color: #475569;
+  color: var(--color-mopane);
 }
 
 .input-group input {
@@ -179,31 +113,21 @@
   padding: 14px 16px;
   font-size: 1rem;
   border-radius: 12px;
-  border: 1px solid;
+  border: 1px solid var(--color-lichen);
   transition: all 0.2s;
   font-family: inherit;
-}
-
-.admin-login-page.dark .input-group input {
-  background: rgba(15, 23, 42, 0.6);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #f1f5f9;
-}
-
-.admin-login-page.light .input-group input {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #1e293b;
+  background: var(--color-off-white);
+  color: var(--color-mopane);
 }
 
 .input-group input:focus {
   outline: none;
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+  border-color: var(--color-red-sand);
+  box-shadow: 0 0 0 3px rgba(153, 66, 33, 0.1);
 }
 
 .input-group input::placeholder {
-  color: #64748b;
+  color: #999;
 }
 
 /* Password Wrapper */
@@ -227,14 +151,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--color-moss);
 }
 
-.admin-login-page.dark .password-toggle {
-  color: #64748b;
-}
-
-.admin-login-page.light .password-toggle {
-  color: #94a3b8;
+.password-toggle:hover {
+  color: var(--color-red-sand);
 }
 
 /* Error Message */
@@ -242,9 +163,9 @@
   padding: 12px 16px;
   border-radius: 10px;
   font-size: 0.9rem;
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(153, 66, 33, 0.1);
+  color: var(--color-red-sand);
+  border: 1px solid rgba(153, 66, 33, 0.2);
 }
 
 /* Submit Button */
@@ -262,14 +183,14 @@
   cursor: pointer;
   transition: all 0.3s;
   font-family: inherit;
-  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  background: linear-gradient(135deg, var(--color-red-sand) 0%, #b85c38 100%);
   color: white;
   margin-top: 8px;
 }
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(22, 163, 74, 0.4);
+  box-shadow: 0 12px 30px rgba(153, 66, 33, 0.3);
 }
 
 .submit-btn:disabled {
@@ -282,25 +203,11 @@
 .admin-footer {
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid;
-}
-
-.admin-login-page.dark .admin-footer {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.admin-login-page.light .admin-footer {
-  border-color: rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--color-lichen);
+  opacity: 0.5;
 }
 
 .admin-footer p {
   font-size: 0.8rem;
-}
-
-.admin-login-page.dark .admin-footer p {
-  color: #64748b;
-}
-
-.admin-login-page.light .admin-footer p {
-  color: #94a3b8;
+  color: var(--color-moss);
 }

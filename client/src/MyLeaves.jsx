@@ -18,10 +18,13 @@ function MyLeaves({ leaves = [], user, leaveBalance }) {
 
   const myLeaves = currentUserLeaves.map(feature => {
     const attrs = feature.attributes
+    // DEBUG: Log attributes to check status
+    console.log('MyLeaves processing leave:', attrs.OBJECTID, attrs.Status, attrs);
+
     // Use fields from our new schema
     const startDate = new Date(attrs.StartDate)
     const endDate = new Date(attrs.EndDate)
-    const submittedDate = new Date(attrs.SubmittedDate)
+    const submittedDate = new Date(attrs.SubmittedDate || attrs.CreatedDate)
     
     // Display name mapping
     let displayType = attrs.LeaveType || 'Time-Off';
@@ -30,8 +33,8 @@ function MyLeaves({ leaves = [], user, leaveBalance }) {
     if (['Sick', 'sick', 'Sick Leave'].includes(displayType)) displayType = 'Sick Leave';
     
     // Fallback for duration if not calculated
-    const leaveDuration = attrs.DaysRequested || 
-      (Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1)
+    // Fallback for duration if not calculated
+    const leaveDuration = attrs.DaysRequested || attrs.Days || (startDate && endDate ? Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1 : 0);
 
     return {
       id: attrs.OBJECTID,
@@ -41,8 +44,9 @@ function MyLeaves({ leaves = [], user, leaveBalance }) {
       EndDate: attrs.EndDate, // Keep original for API calls
       leaveDuration,
       submittedDate,
-      status: attrs.Status?.toLowerCase() || 'pending',
-      rejectionReason: attrs.RejectionReason,
+      // Try multiple casings for Status
+      status: (attrs.Status || attrs.status || attrs.STATUS || 'unknown').toLowerCase(),
+      rejectionReason: attrs.RejectionReason || attrs.rejectionRequest,
       modificationType: attrs.ModificationType,
       modificationStatus: attrs.ModificationStatus
     }

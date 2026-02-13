@@ -510,3 +510,71 @@
     padding: 4px 0;
   }
 }
+
+/* Status Cards */
+.status-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  border: 1px solid rgba(0,0,0,0.05);
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.8);
+  margin-bottom: 24px;
+}
+
+.status-card.work {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #166534;
+}
+
+.status-card.off {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+}
+
+.status-card.secondary {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.status-header {
+  margin-bottom: 12px;
+}
+
+.status-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.days-counter {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.days-counter.small {
+  font-size: 2.5rem;
+  margin-bottom: 4px;
+}
+
+.progress-bar-container {
+  height: 8px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: currentColor;
+  border-radius: 4px;
+  transition: width 1s ease-out;
+}
+

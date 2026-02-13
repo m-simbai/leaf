@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Circle, User } from 'lucide-react'
 import './Calendar.css'
 
-function Calendar({ leaves = [], user }) {
+function Calendar({ leaves = [], user, refreshKey, portalMode }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [hoveredPerson, setHoveredPerson] = useState(null)
   const [projectedSchedule, setProjectedSchedule] = useState([])
@@ -27,9 +27,40 @@ function Calendar({ leaves = [], user }) {
         }
       })
       .catch(console.error)
-  }, [])
+  }, [refreshKey])
 
-  // ... (keep existing useEffect for projected schedule) ...
+  // Calculate projected schedule when user or leaves change
+  useEffect(() => {
+    if (!user) return
+    const role = user.role?.toLowerCase()
+    if (role !== 'staff' && role !== 'manager') return
+    
+    // Fetch authoritative cycle status from server
+    fetch(`/api/employees/${user.employeeId}/cycle-status`)
+    .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch cycle status')
+        return res.json()
+    })
+    .then(data => {
+        if (data.status) {
+            setCycleStatus(data.status)
+        }
+        if (data.projection) {
+            setProjectedSchedule(data.projection)
+        }
+    })
+    .catch(err => {
+        console.error("Error fetching cycle status:", err)
+    })
+  }, [leaves, user, refreshKey])
+
+  // Computed Properties: 'Me' view for staff OR manager in request mode
+  const isStaffView = user?.role?.toLowerCase() === 'staff' || 
+                    (user?.role?.toLowerCase() === 'manager' && portalMode === 'request')
+
+  // ... (rest of code)
+
+
 
   // Get days in month
   const getDaysInMonth = (year, month) => {
@@ -64,8 +95,11 @@ function Calendar({ leaves = [], user }) {
   // Process leave data to determine who is in/out on each day
   const processedLeaves = useMemo(() => {
     // Privacy Filter: 
-    // If user is staff, only show their own leaves.
-    // If manager, show everyone.
+    // Staff: Only show own leaves
+    // Manager: 
+    //   - In 'Me' mode: Only show self
+    //   - In 'Management' mode: Only show direct reports (exclude self)
+    // Director/Admin: Show everyone
     let visibleLeaves = leaves;
     const userRole = user?.role?.toLowerCase();
     
@@ -74,7 +108,27 @@ function Calendar({ leaves = [], user }) {
         l.attributes.EmployeeID === user.employeeId || 
         l.attributes.EmployeeID === user.username
       );
+    } else if (userRole === 'manager') {
+       if (portalMode === 'request') {
+          // Me mode: Show ONLY my own leaves
+          visibleLeaves = leaves.filter(l => 
+            l.attributes.EmployeeID === user.employeeId || 
+            l.attributes.EmployeeID === user.username
+          );
+       } else {
+          // Management mode: Show ONLY direct reports (exclude self)
+          const myTeamIds = employees
+            .filter(e => e.managerId === user.employeeId)
+            .map(e => e.employeeId);
+          
+          visibleLeaves = leaves.filter(l => 
+            myTeamIds.includes(l.attributes.EmployeeID) && 
+            l.attributes.EmployeeID !== user.employeeId && 
+            l.attributes.EmployeeID !== user.username
+          );
+       }
     }
+    // Director/Admin sees all (no filter)
 
     return visibleLeaves.map(feature => {
       const attrs = feature.attributes
@@ -112,7 +166,7 @@ function Calendar({ leaves = [], user }) {
 
   // Helper to get relevant team members based on role
   const getMyTeam = () => {
-    if (!employees.length) return []
+    if (!employees.length || isStaffView) return []
     const role = user?.role?.toLowerCase()
     
     if (role === 'manager') {
@@ -120,11 +174,6 @@ function Calendar({ leaves = [], user }) {
     }
     if (role === 'director') {
       return employees.filter(e => e.role?.toLowerCase() === 'manager')
-    }
-    if (role === 'staff') {
-      // Staff see their own team members? Or just themselves?
-      // For now, let's show their team members (peers)
-      return employees.filter(e => e.managerId === user.managerId)
     }
     return [] // Admin or unknown
   }
@@ -185,26 +234,43 @@ function Calendar({ leaves = [], user }) {
       peopleOutIds.add(leave.employeeId)
     })
 
-    // 2. Add Projected Off Days (If Staff View & Not already covered)
-    if (user?.role?.toLowerCase() === 'staff') {
+    // 2. Add Projected Days (If Me View)
+    if (isStaffView) {
       const dateKey = checkDate.toISOString().split('T')[0]
-      const projected = projectedSchedule.find(s => s.date === dateKey && s.type === 'projected-off')
+      const projected = projectedSchedule.find(s => s.date === dateKey)
       
       if (projected && !uniquePeople.has(user.employeeId)) {
-        uniquePeople.set(user.employeeId, {
-          id: `proj-${dateKey}`,
-          employeeId: user.employeeId,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          fullName: `${user.firstName} ${user.lastName}`,
-          startDate: checkDate,
-          endDate: checkDate,
-          status: 'projected-out',
-          type: 'annual', // Projected time-off is annual
-          isOut: true,
-          isProjected: true
-        })
-        peopleOutIds.add(user.employeeId)
+        // Handle Work Days (On Duty)
+        if (projected.type === 'work') {
+          uniquePeople.set(user.employeeId, {
+            id: `duty-${dateKey}`,
+            employeeId: user.employeeId,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            fullName: `${user.firstName} ${user.lastName}`,
+            type: 'duty',
+            status: 'in',
+            isOut: false,
+            isProjected: true
+          })
+        } 
+        // Handle Projected Off Days
+        else if (projected.type === 'projected-off') {
+           uniquePeople.set(user.employeeId, {
+            id: `proj-${dateKey}`,
+            employeeId: user.employeeId,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            fullName: `${user.firstName} ${user.lastName}`,
+            startDate: checkDate,
+            endDate: checkDate,
+            status: 'projected-out',
+            type: 'annual',
+            isOut: true,
+            isProjected: true
+          })
+          peopleOutIds.add(user.employeeId)
+        }
       }
     }
 
@@ -286,7 +352,7 @@ function Calendar({ leaves = [], user }) {
 
   const peopleOnLeaveToday = getPeopleOnLeaveToday()
 
-  const isStaffView = user?.role?.toLowerCase() === 'staff'
+
 
   // Helper for dot colors
   const getDotColor = (type) => {
@@ -364,7 +430,7 @@ function Calendar({ leaves = [], user }) {
                       onMouseLeave={() => setHoveredPerson(null)}
                       title="" // Clear native tooltip to show custom one
                     >
-                      {getInitials(person.firstName, person.lastName)}
+                      {!isStaffView && getInitials(person.firstName, person.lastName)}
                     </div>
                   ))}
                 </div>
@@ -400,12 +466,20 @@ function Calendar({ leaves = [], user }) {
         {/* Legend */}
         <div className="calendar-legend">
           <div className="legend-item">
-            <div className="legend-dot in bg-green-500"></div>
+            <Circle size={10} className="text-green-500" fill="currentColor" />
             <span>On Duty</span>
           </div>
           <div className="legend-item">
-            <div className="legend-dot out"></div>
-            <span>On leave</span>
+            <Circle size={10} className="text-red-500" fill="currentColor" />
+            <span>Time-Off</span>
+          </div>
+          <div className="legend-item">
+            <Circle size={10} className="text-blue-500" fill="currentColor" />
+            <span>Sick Leave</span>
+          </div>
+          <div className="legend-item">
+            <Circle size={10} className="text-yellow-500" fill="currentColor" />
+            <span>Compassionate</span>
           </div>
         </div>
       </div>
@@ -417,92 +491,96 @@ function Calendar({ leaves = [], user }) {
         {isStaffView && cycleStatus && (
           <div className="sidebar-section">
             <h3>My Status</h3>
-            <div className={`countdown-card ${cycleStatus.isWorkDay ? 'work' : 'off'}`}>
-              <div className="countdown-label">
-                {cycleStatus.isWorkDay ? 'Days to Next Break' : 'Days to Return'}
+            
+            {/* 1. Days to Next Break */}
+            <div className={`status-card ${cycleStatus.isWorkDay ? 'work' : 'off'}`}>
+              <div className="status-header">
+                <span className="status-label">{cycleStatus.isWorkDay ? 'DAYS TO NEXT BREAK' : 'DAYS TO RETURN'}</span>
               </div>
-              <div className="countdown-number">
+              <div className="days-counter">
                 {cycleStatus.daysRemaining}
               </div>
-              <div className="countdown-bar">
+              <div className="progress-bar-container">
                 <div 
-                  className="countdown-progress" 
-                  style={{ width: `${Math.min(((30 - cycleStatus.daysRemaining)/30)*100, 100)}%` }} 
+                  className="progress-bar" 
+                  style={{ width: `${Math.min(100, Math.max(0, (22 - cycleStatus.daysRemaining) / 22 * 100))}%` }}
                 />
               </div>
               <div className="countdown-subtitle">
-                {cycleStatus.isWorkDay ? 'Keep pushing!' : 'Enjoy your time off!'}
+                {cycleStatus.isWorkDay ? (
+                  cycleStatus.daysRemaining === 0 ? 'No upcoming break scheduled' : 'Keep pushing!'
+                ) : 'Enjoy your time off!'}
               </div>
             </div>
+
+            {/* 2. Days Accumulated */}
+            <div className="status-card secondary">
+              <div className="status-header">
+                <span className="status-label">DAYS ACCUMULATED</span>
+              </div>
+              <div className="days-counter small">
+                {Math.floor(cycleStatus.daysAccumulated || 0)}
+              </div>
+              <div className="countdown-subtitle">Off-days earned this cycle</div>
+            </div>
+
+            {/* 3. Days Worked */}
+            <div className="status-card secondary">
+              <div className="status-header">
+                <span className="status-label">DAYS WORKED</span>
+              </div>
+              <div className="days-counter small">
+                {cycleStatus.daysWorked || 0}
+              </div>
+              <div className="countdown-subtitle">Since last break</div>
+            </div>
+
           </div>
         )}
 
         {/* Team Status List */}
-        <div className="sidebar-section">
-          <h3>Team Status</h3>
-          <div className="status-list">
-          <div className="status-list">
-            {getMyTeam().map((member, idx) => {
-              // Check if this member is on leave TODAY
-              const leave = peopleOnLeaveToday.find(p => p.employeeId === member.employeeId)
-              const isOnLeave = !!leave
-              const statusType = isOnLeave ? leave.type : 'duty'
-              
-              return (
-                <div key={member.employeeId || idx} className="status-item">
-                  <div className={`status-avatar ${getDotColor(statusType)}`}>
-                    {getInitials(member.firstName, member.lastName)}
-                  </div>
-                  <div className="status-info">
-                    <h4>{member.fullName}</h4>
-                    <div>
-                      {isOnLeave ? (
-                        <>
-                          <span className="leave-type-label">{leave.type}</span>
-                          <span className="return-date">
-                            Until {leave.endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="status-text text-green-500 text-sm font-medium">On Duty</span>
-                      )}
+        {!isStaffView && (
+          <div className="sidebar-section">
+            <h3>Team Status</h3>
+            <div className="status-list">
+              {getMyTeam().map((member, idx) => {
+                // Check if this member is on leave TODAY
+                const leave = peopleOnLeaveToday.find(p => p.employeeId === member.employeeId)
+                const isOnLeave = !!leave
+                const statusType = isOnLeave ? leave.type : 'duty'
+                
+                return (
+                  <div key={member.employeeId || idx} className="status-item">
+                    <div className={`status-avatar ${getDotColor(statusType)}`}>
+                      {getInitials(member.firstName, member.lastName)}
+                    </div>
+                    <div className="status-info">
+                      <h4>{member.fullName}</h4>
+                      <div>
+                        {isOnLeave ? (
+                          <>
+                            <span className="leave-type-label">{leave.type}</span>
+                            <span className="return-date">
+                              Until {leave.endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="status-text text-green-500 text-sm font-medium">On Duty</span>
+                        )}
+                      </div>
                     </div>
                   </div>
+                )
+              })}
+              
+              {getMyTeam().length === 0 && (
+                <div className="status-empty">
+                  No team members found.
                 </div>
-              )
-            })}
-            
-            {getMyTeam().length === 0 && (
-              <div className="status-empty">
-                No team members found.
-              </div>
-            )}
-          </div>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="sidebar-section">
-          <h3>Legend</h3>
-          <div className="legend-section">
-            <div className="legend-item">
-              <Circle size={10} className="text-green-500" fill="currentColor" />
-              <span>On Duty</span>
-            </div>
-            <div className="legend-item">
-              <Circle size={10} className="text-red-500" fill="currentColor" />
-              <span>Time-Off</span>
-            </div>
-            <div className="legend-item">
-              <Circle size={10} className="text-blue-500" fill="currentColor" />
-              <span>Sick Leave</span>
-            </div>
-            <div className="legend-item">
-              <Circle size={10} className="text-yellow-500" fill="currentColor" />
-              <span>Compassionate</span>
+              )}
             </div>
           </div>
-        </div>
+        )}
 
       </div>
     </div>

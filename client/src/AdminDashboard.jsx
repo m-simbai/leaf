@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Users, UserPlus, Key, Trash2, Edit2, X, Check, Search, Shield, Filter, AlertTriangle, Circle, Link2 } from 'lucide-react'
+import { Users, UserPlus, Key, Trash2, Edit2, X, Check, Search, Shield, Filter, AlertTriangle, AlertCircle, Circle, Link2 } from 'lucide-react'
 import './AdminDashboard.css'
+import './Modal.css'
 
 function AdminDashboard({ user }) {
   const [users, setUsers] = useState([])
@@ -14,7 +15,7 @@ function AdminDashboard({ user }) {
   // Modals
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [showResetModal, setShowResetModal] = useState(false)
+
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false)
   
@@ -228,6 +229,28 @@ function AdminDashboard({ user }) {
     return manager ? `${manager.firstName} ${manager.lastName}` : 'Unknown'
   }
 
+  // Handle password reset via email
+  const handleResetPassword = async (userToReset) => {
+    if (!confirm(`Are you sure you want to send a password reset email to ${userToReset.firstName} ${userToReset.lastName}?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userToReset.id}/reset-password`, {
+        method: 'POST'
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        setSuccess(`Reset link sent to ${userToReset.email}`)
+      } else {
+        setError(data.error || 'Failed to send reset link')
+      }
+    } catch (err) {
+      setError('Failed to initiate password reset')
+    }
+  }
+
   // Clear messages after 3 seconds
   useEffect(() => {
     if (error || success) {
@@ -309,6 +332,13 @@ function AdminDashboard({ user }) {
               <div className="stat-info">
                 <span className="stat-value">{users.filter(u => u.isActive).length}</span>
                 <span className="stat-label">Active</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon pending"><AlertCircle size={24} /></div>
+              <div className="stat-info">
+                <span className="stat-value">{users.filter(u => u.isActive && !u.passwordSet).length}</span>
+                <span className="stat-label">Pending</span>
               </div>
             </div>
             <div className="stat-card">
@@ -397,6 +427,10 @@ function AdminDashboard({ user }) {
                           <span className="status-badge on-leave" title={`On ${getUserLeaveType(u.employeeId)}`}>
                             On Leave
                           </span>
+                        ) : !u.passwordSet ? (
+                          <span className="status-badge pending">
+                            Pending
+                          </span>
                         ) : (
                           <span className="status-badge on-duty">
                             On Duty
@@ -422,11 +456,8 @@ function AdminDashboard({ user }) {
                         </button>
                         <button 
                           className="btn-icon key"
-                          title="Reset Password"
-                          onClick={() => {
-                            setSelectedUser(u)
-                            setShowResetModal(true)
-                          }}
+                          title="Send Password Reset Email"
+                          onClick={() => handleResetPassword(u)}
                         >
                           <Key size={16} />
                         </button>
@@ -588,22 +619,6 @@ function AdminDashboard({ user }) {
             setSelectedUser(null)
             setSuccess('User updated successfully')
             fetchUsers()
-          }}
-        />
-      )}
-
-      {/* Reset Password Modal */}
-      {showResetModal && selectedUser && (
-        <ResetPasswordModal 
-          user={selectedUser}
-          onClose={() => {
-            setShowResetModal(false)
-            setSelectedUser(null)
-          }}
-          onSuccess={() => {
-            setShowResetModal(false)
-            setSelectedUser(null)
-            setSuccess('Password reset successfully')
           }}
         />
       )}
@@ -775,7 +790,8 @@ function EditUserModal({ user, onClose, onSuccess }) {
     lastName: user.lastName || '',
     email: user.email || '',
     role: user.role || 'staff',
-    department: user.department || ''
+    department: user.department || '',
+    startDate: user.startDate ? new Date(user.startDate).toISOString().split('T')[0] : ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -837,6 +853,19 @@ function EditUserModal({ user, onClose, onSuccess }) {
               />
             </div>
           </div>
+          
+          <div className="form-group">
+            <label>Start Date</label>
+            <input 
+              type="date"
+              className="form-control"
+              value={form.startDate}
+              onChange={e => setForm({...form, startDate: e.target.value})}
+            />
+            <small className="help-text" style={{display:'block', marginTop:'4px', color:'#666'}}>
+              Used to calculate accumulated off-days (22/8 cycle). Defaults to Jan 1st of current year if not set.
+            </small>
+          </div>
 
           <div className="form-group">
             <label>Email</label>
@@ -884,99 +913,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
   )
 }
 
-// Reset Password Modal Component
-function ResetPasswordModal({ user, onClose, onSuccess }) {
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
-    if (newPassword.length < 4) {
-      setError('Password must be at least 4 characters')
-      return
-    }
-
-    setLoading(true)
-    setError('')
-
-    try {
-      const response = await fetch(`/api/admin/users/${user.id}/reset-password`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPassword })
-      })
-      const data = await response.json()
-      
-      if (data.success) {
-        onSuccess()
-      } else {
-        setError(data.error || 'Failed to reset password')
-      }
-    } catch (err) {
-      setError('Failed to reset password')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <button className="modal-close" onClick={onClose}><X size={24} /></button>
-        <div className="modal-header">
-          <Key size={24} className="modal-icon" />
-          <h2>Reset Password</h2>
-        </div>
-        
-        <p className="modal-subtitle">
-          Resetting password for <strong>{user.firstName} {user.lastName}</strong>
-        </p>
-
-        <form onSubmit={handleSubmit} className="modal-body">
-          {error && <div className="error-message">{error}</div>}
-          
-          <div className="form-group">
-            <label>New Password</label>
-            <input 
-              type="password"
-              className="form-control"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              required
-              minLength={4}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Confirm Password</label>
-            <input 
-              type="password"
-              className="form-control"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="modal-actions">
-            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Resetting...' : 'Reset Password'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
 
 // Delete Confirmation Modal
 function DeleteConfirmModal({ user, onClose, onConfirm }) {

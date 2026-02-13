@@ -17,6 +17,8 @@ function Dashboard({ user, onLogout }) {
   // Portal mode for managers: 'manage' (default) or 'request'
   const [portalMode, setPortalMode] = useState('manage')
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [liveBalance, setLiveBalance] = useState(user?.leaveBalance || { annual: 0, sick: 0, other: 0 })
   
   const handlePortalSwitch = (mode) => {
     if (mode === 'manage' && portalMode === 'request') {
@@ -39,7 +41,7 @@ function Dashboard({ user, onLogout }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(API_URL, { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to fetch data');
       const data = await response.json();
       setLeaves(data.features || []); 
@@ -50,8 +52,69 @@ function Dashboard({ user, onLogout }) {
     }
   };
 
+  const fetchBalance = async () => {
+    if (!user?.employeeId) return;
+    try {
+      const response = await fetch(`/api/employees/${user.employeeId}/cycle-status`, { cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        setLiveBalance({
+          annual: Math.floor(data.status?.daysAccumulated || 0),
+          sick: data.status?.sickBalance || 90,
+          other: data.status?.otherBalance || 10
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch balance:', err);
+    }
+  };
+
+  const handleDeepRefresh = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // 1. Reset server session (non-blocking - don't fail if this errors)
+      try {
+        await fetch('/api/system/refresh', { method: 'POST' });
+        console.log('Database session reset');
+      } catch (e) {
+        console.warn('Session reset failed (non-critical):', e.message);
+      }
+      
+      // 2. Re-fetch leaves data and balance
+      const [leavesRes, balanceRes] = await Promise.all([
+        fetch(API_URL, { cache: 'no-store' }),
+        fetch(`/api/employees/${user.employeeId}/cycle-status`, { cache: 'no-store' })
+      ]);
+
+      if (!leavesRes.ok) throw new Error('Failed to fetch data');
+      const leavesData = await leavesRes.json();
+      setLeaves(leavesData.features || []);
+
+      if (balanceRes.ok) {
+        const balanceData = await balanceRes.json();
+        setLiveBalance({
+          annual: Math.floor(balanceData.status?.daysAccumulated || 0),
+          sick: balanceData.status?.sickBalance || 90,
+          other: balanceData.status?.otherBalance || 10
+        });
+      }
+      
+      // 3. Trigger re-fetch in sub-components (Calendar, etc.)
+      setRefreshKey(prev => prev + 1);
+      
+      console.log('Refresh complete');
+    } catch (err) {
+      console.error('Refresh failed:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchLeaves();
+    fetchBalance();
   }, []);
 
   const handleNewRequest = () => {
@@ -138,7 +201,7 @@ function Dashboard({ user, onLogout }) {
                 title="Submit your own leave requests"
               >
                 <FileText size={16} />
-                Staff
+                Me
               </button>
               <button
                 className={`portal-btn ${portalMode === 'manage' ? 'active' : ''}`}
@@ -194,7 +257,7 @@ function Dashboard({ user, onLogout }) {
               <span className="user-role">
                 {isAdmin ? 'Admin' : 
                  isDirector ? 'Director' : 
-                 (isManager ? (portalMode === 'manage' ? 'Manager' : 'Staff Mode') : 'Staff')}
+                 (isManager ? (portalMode === 'manage' ? 'Manager' : 'Me') : 'Staff')}
               </span>
             </div>
           </div>
@@ -264,7 +327,7 @@ function Dashboard({ user, onLogout }) {
              {!isAdmin && (
               <button 
                 className={`mobile-nav-item ${loading ? 'spin' : ''}`} 
-                onClick={fetchLeaves}
+                onClick={handleDeepRefresh}
                 disabled={loading}
               >
                 <RefreshCw size={20} />
@@ -291,7 +354,7 @@ function Dashboard({ user, onLogout }) {
             </div>
             <div className="header-right">
               {!isAdmin && (
-                <button onClick={fetchLeaves} disabled={loading} className="btn btn-secondary icon-only-mobile desktop-only">
+                <button onClick={handleDeepRefresh} disabled={loading} className="btn btn-secondary icon-only-mobile desktop-only">
                   <RefreshCw size={18} className={loading ? 'spin' : ''} />
                   <span className="btn-text">Refresh</span>
                 </button>
@@ -320,29 +383,31 @@ function Dashboard({ user, onLogout }) {
             <MyLeaves 
               leaves={leaves} 
               user={user}
-              leaveBalance={user?.leaveBalance}
+              leaveBalance={liveBalance}
+              refreshKey={refreshKey}
             />
           )}
           {activeTab === 'request' && (
             <LeaveRequest 
               user={user}
-              leaveBalance={user?.leaveBalance}
+              leaveBalance={liveBalance}
               onSubmit={(data) => {
                 console.log('Leave request submitted:', data)
                 fetchLeaves()
+                fetchBalance() // Refresh balance after submission
                 setActiveTab('myleaves')
               }}
               onCancel={() => setActiveTab('myleaves')}
             />
           )}
           {activeTab === 'calendar' && (
-            <Calendar leaves={leaves} user={user} />
+            <Calendar leaves={leaves} user={user} refreshKey={refreshKey} portalMode={portalMode} />
           )}
           {activeTab === 'team' && (
-            <TeamView leaves={leaves} user={user} />
+            <TeamView leaves={leaves} user={user} refreshKey={refreshKey} />
           )}
           {activeTab === 'inbox' && (
-            <Inbox leaves={leaves} user={user} onRefresh={fetchLeaves} />
+            <Inbox leaves={leaves} user={user} onRefresh={fetchLeaves} refreshKey={refreshKey} />
           )}
           {activeTab === 'settings' && isManager && portalMode === 'manage' ? (
             <DelegationManager user={user} />

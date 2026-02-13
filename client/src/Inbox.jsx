@@ -28,9 +28,9 @@ function Inbox({ leaves = [], user, onRefresh }) {
       endDate: new Date(attrs.EndDate),
       originalEndDate: attrs.OriginalEndDate ? new Date(attrs.OriginalEndDate) : null,
       actualEndDate: attrs.ActualEndDate ? new Date(attrs.ActualEndDate) : null,
-      leaveDuration: attrs.DaysRequested || 0,
+      leaveDuration: attrs.DaysRequested || attrs.Days || (attrs.StartDate && attrs.EndDate ? Math.ceil((new Date(attrs.EndDate) - new Date(attrs.StartDate)) / (1000 * 60 * 60 * 24)) + 1 : 0),
       daysTaken: attrs.DaysTaken,
-      submittedDate: new Date(attrs.SubmittedDate),
+      submittedDate: new Date(attrs.CreatedDate),
       leaveType: (attrs.LeaveType === 'Annual' || attrs.LeaveType === 'Annual Leave') ? 'Time-Off' : 
                  (attrs.LeaveType === 'Other' || attrs.LeaveType === 'Other Leave') ? 'Compassionate' : 
                  (attrs.LeaveType || 'Time-Off'),

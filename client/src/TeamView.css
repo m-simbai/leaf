@@ -25,7 +25,7 @@
 
 .team-stats .stat-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(201, 162, 39, 0.3);
+  border-color: rgba(105, 117, 89, 0.3); /* Moss */
 }
 
 .team-stats .stat-icon {
@@ -38,9 +38,9 @@
   color: white;
 }
 
-.stat-icon.total { background: linear-gradient(135deg, #667eea, #764ba2); }
-.stat-icon.in { background: linear-gradient(135deg, #10b981, #34d399); }
-.stat-icon.out { background: linear-gradient(135deg, #ef4444, #f87171); }
+.stat-icon.total { background: var(--color-mopane); }
+.stat-icon.in { background: var(--color-moss); }
+.stat-icon.out { background: var(--color-red-sand); }
 .stat-icon.avg { background: var(--accent-gradient); }
 
 .stat-content {
@@ -64,15 +64,16 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(163, 167, 142, 0.2); /* Lichen */
+  border: 1px solid rgba(163, 167, 142, 0.3);
   border-radius: 12px;
   padding: 16px 20px;
-  color: #fbbf24;
+  color: var(--color-mopane);
 }
 
 .upcoming-alert strong {
-  color: #f59e0b;
+  color: var(--color-mopane);
+  font-weight: 700;
 }
 
 /* ==================== Filter Tabs ==================== */
@@ -105,9 +106,9 @@
 }
 
 .filter-tab.active {
-  background: var(--accent-gradient);
+  background: var(--color-moss);
   color: white;
-  box-shadow: 0 4px 15px rgba(201, 162, 39, 0.3);
+  box-shadow: 0 4px 15px rgba(105, 117, 89, 0.3); /* Moss shadow */
 }
 
 /* ==================== Team List ==================== */
@@ -130,16 +131,16 @@
 }
 
 .team-card:hover {
-  border-color: rgba(201, 162, 39, 0.3);
+  border-color: rgba(105, 117, 89, 0.3);
   transform: translateX(4px);
 }
 
 .team-card.out {
-  border-left: 4px solid #ef4444;
+  border-left: 4px solid var(--color-red-sand);
 }
 
 .team-card.in {
-  border-left: 4px solid #10b981;
+  border-left: 4px solid var(--color-moss);
 }
 
 .team-card-left {
@@ -164,11 +165,11 @@
 }
 
 .team-avatar.in {
-  background: linear-gradient(135deg, #10b981, #34d399);
+  background: var(--color-moss);
 }
 
 .team-avatar.out {
-  background: linear-gradient(135deg, #ef4444, #f87171);
+  background: var(--color-red-sand);
 }
 
 .team-info {
@@ -237,13 +238,13 @@
 }
 
 .countdown.returning {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(153, 66, 33, 0.1); /* Red Sand opacity */
+  border: 1px solid rgba(153, 66, 33, 0.2);
 }
 
 .countdown.leaving {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(163, 167, 142, 0.2); /* Lichen opacity */
+  border: 1px solid rgba(163, 167, 142, 0.3);
 }
 
 .countdown-value {
@@ -254,11 +255,11 @@
 }
 
 .countdown.returning .countdown-value {
-  color: #f87171;
+  color: var(--color-red-sand);
 }
 
 .countdown.leaving .countdown-value {
-  color: #fbbf24;
+  color: var(--color-mopane);
 }
 
 .countdown-unit {
@@ -289,9 +290,9 @@
 }
 
 .status-badge.available {
-  background: rgba(16, 185, 129, 0.1);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: rgba(105, 117, 89, 0.15); /* Moss opacity */
+  color: var(--color-moss);
+  border: 1px solid rgba(105, 117, 89, 0.2);
 }
 
 /* No Results */

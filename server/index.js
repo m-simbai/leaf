@@ -9,6 +9,10 @@ const crypto = require('crypto');
 const { notifyNewRequest, notifyApproved, notifyRejected, notifyEarlyCheckin, notifyExtensionRequest, notifyExtensionApproved, notifyExtensionRejected, notifyManagerExtension, notifyPasswordReset, notifyAccountCreated, notifyPasswordSetupLink, notifyManagerAssignment, notifyPasswordResetLink, notifyAssignmentRequest, notifyAssignmentApproved, notifyAssignmentRejected, notifyPreviousManagerReassignment } = require('./services/webhookService');
 const { calculateProjectedSchedule, getCycleStatus, getLeaveTypeColor, YEARLY_SICK_DAYS, YEARLY_COMPASSIONATE_DAYS } = require('./services/cycleService');
 
+function hashPassword(password) {
+    return crypto.createHash('sha256').update(password).digest('hex');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -98,10 +102,7 @@ function getSession() {
     return session;
 }
 
-// Simple password hashing (in production use bcrypt)
-function hashPassword(password) {
-    return crypto.createHash('sha256').update(password).digest('hex');
-}
+
 
 // Strong password validation: 8+ chars, uppercase, number, special char
 function validateStrongPassword(password) {
@@ -148,11 +149,14 @@ async function getManagerEmail() {
     }
 }
 
-// Helper: Get the assigned manager for an employee
+
+
+// Helper: Get specific manager for an employee
 async function getManagerForEmployee(employeeId) {
     try {
         const authentication = getSession();
-        // First get the employee's ManagerID
+        
+        // 1. Get employee's manager ID
         const empResponse = await queryFeatures({
             url: EMPLOYEES_URL,
             where: `EmployeeID = '${employeeId}'`,
@@ -160,21 +164,44 @@ async function getManagerForEmployee(employeeId) {
             returnGeometry: false,
             authentication
         });
+        
         const managerId = empResponse.features?.[0]?.attributes?.ManagerID;
+        
         if (!managerId) return null;
         
-        // Get the manager's details
-        const mgrResponse = await queryFeatures({
+        // 2. Get manager's details
+        const managerResponse = await queryFeatures({
             url: EMPLOYEES_URL,
             where: `EmployeeID = '${managerId}'`,
-            outFields: 'Email,FirstName,LastName,EmployeeID',
+            outFields: 'Email,FirstName,LastName',
             returnGeometry: false,
             authentication
         });
-        return mgrResponse.features?.[0]?.attributes || null;
+        
+        return managerResponse.features?.[0]?.attributes;
     } catch (error) {
         console.error('Error fetching manager for employee:', error);
         return null;
+    }
+}
+
+// Helper: Get director email
+async function getDirectorEmail() {
+    try {
+        const authentication = getSession();
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `Role = 'director'`,
+            outFields: 'Email',
+            returnGeometry: false,
+            authentication
+        });
+        
+        // Return first director found, or admin email
+        return response.features?.[0]?.attributes?.Email || process.env.ADMIN_EMAIL || '';
+    } catch (error) {
+        console.error('Error fetching director email:', error);
+        return process.env.ADMIN_EMAIL || '';
     }
 }
 
@@ -199,23 +226,7 @@ async function getStaffForManager(managerId, includeDelegated = false) {
     }
 }
 
-// Helper: Get Project Director email (for manager leave notifications)
-async function getDirectorEmail() {
-    try {
-        const authentication = getSession();
-        const response = await queryFeatures({
-            url: EMPLOYEES_URL,
-            where: `Role = 'director' AND IsActive = 1`,
-            outFields: 'Email,FirstName,LastName',
-            returnGeometry: false,
-            authentication
-        });
-        return response.features?.[0]?.attributes?.Email || process.env.ADMIN_EMAIL || '';
-    } catch (error) {
-        console.error('Error fetching director email:', error);
-        return process.env.ADMIN_EMAIL || '';
-    }
-}
+
 
 // Helper: Check if an approver can approve a given leave request
 async function canApproveLeave(approverId, leaveEmployeeId) {
@@ -341,12 +352,11 @@ app.post('/api/auth/login', async (req, res) => {
 
         const employee = response.features[0].attributes;
         
-        // For demo: accept any password, but check role matches
-        // In production: compare hashed passwords
-        // const hashedInput = hashPassword(password);
-        // if (employee.PasswordHash !== hashedInput) {
-        //     return res.status(401).json({ error: 'Invalid username or password' });
-        // }
+        // Check password
+        const hashedInput = hashPassword(password);
+        if (employee.PasswordHash !== hashedInput) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
 
         // Check if role matches (if specified)
         if (role) {
@@ -354,14 +364,24 @@ app.post('/api/auth/login', async (req, res) => {
             const userRole = (employee.Role || '').toLowerCase();
             
             if (userRole !== requestedRole) {
-                // Use generic error for security
+                // Maximum security: role must match exactly
                 return res.status(401).json({ error: 'Invalid username or password' });
+            }
+        } else {
+            // If no role specified (standard login), prevent ADMIN from logging in
+            if ((employee.Role || '').toLowerCase() === 'admin') {
+                return res.status(403).json({ error: 'Admins must use the Admin Portal for login.' });
             }
         }
 
         // Check if account is active
         if (employee.IsActive === 0) {
             return res.status(401).json({ error: 'Account is deactivated' });
+        }
+
+        // Check if password setup is pending
+        if (employee.PasswordHash === 'PENDING_SETUP') {
+           return res.status(401).json({ error: 'Account pending setup. Please check your email to set a password.' }); 
         }
 
         // Return user info (exclude password hash)
@@ -414,13 +434,13 @@ app.post('/api/auth/verify-password', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
         
-        // const employee = response.features[0].attributes;
+        const employee = response.features[0].attributes;
         
-        // In production: compare hashed passwords
-        // For demo: we accept the password if the user exists (matching login behavior)
-        // If we wanted to enforce specific demo passwords:
-        // if (employee.Username === 'tagwireyi' && password !== 'password123') return res.status(401).json({ error: 'Invalid password' });
-        // if (employee.Username === 'admin_simba' && password !== 'admin123') return res.status(401).json({ error: 'Invalid password' });
+        // Verify password
+        const hashedInput = hashPassword(password);
+        if (employee.PasswordHash !== hashedInput) {
+             return res.status(401).json({ error: 'Invalid password' });
+        }
 
         res.json({ success: true });
 
@@ -474,7 +494,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
             });
             
             // Send reset link via webhook
-            const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
+            const appBaseUrl = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
             const resetLink = `${appBaseUrl}/reset-password?token=${resetToken}`;
             
             await notifyPasswordResetLink({
@@ -497,6 +517,78 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     } catch (error) {
         console.error('Forgot password error:', error);
         res.status(500).json({ error: 'Request failed' });
+    }
+});
+
+// Validate setup token endpoint
+app.get('/api/auth/validate-setup-token/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const authentication = getSession();
+
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `SetupToken = '${token}'`,
+            outFields: 'SetupTokenExpiry,FirstName,LastName',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (!response.features || response.features.length === 0) {
+            return res.json({ valid: false, error: 'Invalid setup link' });
+        }
+
+        const user = response.features[0].attributes;
+
+        if (user.SetupTokenExpiry && user.SetupTokenExpiry < Date.now()) {
+            return res.json({ valid: false, error: 'Setup link has expired' });
+        }
+
+        res.json({ 
+            valid: true, 
+            firstName: user.FirstName, 
+            lastName: user.LastName 
+        });
+
+    } catch (error) {
+        console.error('Token validation error:', error);
+        res.status(500).json({ error: 'Validation failed' });
+    }
+});
+
+// Validate reset token endpoint
+app.get('/api/auth/validate-reset-token/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const authentication = getSession();
+
+        const response = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `ResetToken = '${token}'`,
+            outFields: 'ResetTokenExpiry,FirstName,LastName',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (!response.features || response.features.length === 0) {
+            return res.json({ valid: false, error: 'Invalid reset link' });
+        }
+
+        const user = response.features[0].attributes;
+
+        if (user.ResetTokenExpiry && user.ResetTokenExpiry < Date.now()) {
+            return res.json({ valid: false, error: 'Reset link has expired' });
+        }
+
+        res.json({ 
+            valid: true, 
+            firstName: user.FirstName, 
+            lastName: user.LastName 
+        });
+
+    } catch (error) {
+        console.error('Token validation error:', error);
+        res.status(500).json({ error: 'Validation failed' });
     }
 });
 
@@ -1061,42 +1153,8 @@ app.get('/api/employees/:employeeId/schedule', async (req, res) => {
     }
 });
 
-// Get cycle status for an employee
-app.get('/api/employees/:employeeId/cycle-status', async (req, res) => {
-    try {
-        const { employeeId } = req.params;
-        const authentication = getSession();
-        
-        // Get approved leaves for this employee
-        const leaveResponse = await queryFeatures({
-            url: LEAVE_REQUESTS_URL,
-            where: `EmployeeID = '${employeeId}' AND Status = 'approved'`,
-            outFields: 'StartDate,EndDate,LeaveType',
-            returnGeometry: false,
-            authentication
-        });
-        
-        const approvedLeaves = (leaveResponse.features || []).map(f => ({
-            startDate: f.attributes.StartDate,
-            endDate: f.attributes.EndDate,
-            leaveType: f.attributes.LeaveType
-        }));
-        
-        // Get employee's owed days (TODO: store in DB)
-        const daysOwed = 0;
-        
-        const status = getCycleStatus(approvedLeaves, daysOwed);
-        
-        res.json({
-            employeeId,
-            ...status
-        });
-        
-    } catch (error) {
-        console.error('Error getting cycle status:', error);
-        res.status(500).json({ error: 'Failed to get cycle status' });
-    }
-});
+
+// (cycle-status endpoint moved to after health check, before deployment section)
 
 // Submit new leave request
 app.post('/api/leaves', async (req, res) => {
@@ -1128,6 +1186,80 @@ app.post('/api/leaves', async (req, res) => {
         // Parse dates for comparison
         const newStartDate = new Date(startDate).getTime();
         const newEndDate = new Date(endDate).getTime();
+        
+        // Block same-day leave requests (must start from tomorrow onwards)
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = todayStart.getTime();
+        if (newStartDate <= todayEnd) {
+            return res.status(400).json({ 
+                error: 'Leave cannot start today or in the past. Please choose a date from tomorrow onwards.' 
+            });
+        }
+
+        // Block 1-day leave requests (Start Date and End Date cannot be the same)
+        // Ensure time components are stripped for comparison
+        const startDateOnly = new Date(startDate);
+        startDateOnly.setHours(0,0,0,0);
+        const endDateOnly = new Date(endDate);
+        endDateOnly.setHours(0,0,0,0);
+        
+        if (startDateOnly.getTime() === endDateOnly.getTime()) {
+            return res.status(400).json({ 
+                error: 'Leave must be at least 2 days (Start and End dates cannot be the same).' 
+            });
+        }
+        
+        // For annual/time-off leave, enforce accumulation cap
+        if (leaveType && leaveType.toLowerCase() === 'annual') {
+            try {
+                // Get the employee's StartDate for accumulation calculation
+                const empQuery = await queryFeatures({
+                    url: EMPLOYEES_URL,
+                    where: `EmployeeID = '${employeeId}'`,
+                    outFields: 'StartDate,AnnualLeaveBalance',
+                    returnGeometry: false,
+                    authentication
+                });
+                const empData = empQuery.features?.[0]?.attributes;
+                
+                // Calculate accumulated days using 22/8 cycle
+                const empStartDate = empData?.StartDate ? new Date(empData.StartDate) : new Date(new Date().getFullYear(), 0, 1);
+                const today = new Date();
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const totalDays = Math.floor((today - empStartDate) / msPerDay);
+                let workDays = 0;
+                // Estimate work days based on 22-on/8-off cycle (30 day cycle)
+                // We don't use weekend logic because they work weekends.
+                // We assume uniform distribution of work/off days over the period.
+                workDays = Math.floor(totalDays * (22 / 30));
+                const daysAccumulated = Math.floor((workDays / 22) * 8);
+                
+                // Count already approved/pending annual leave days
+                const usedLeaves = await queryFeatures({
+                    url: LEAVE_REQUESTS_URL,
+                    where: `EmployeeID = '${employeeId}' AND LeaveType = 'annual' AND Status IN ('pending', 'approved')`,
+                    outFields: 'Days',
+                    returnGeometry: false,
+                    authentication
+                });
+                let usedDays = 0;
+                if (usedLeaves.features) {
+                    usedDays = usedLeaves.features.reduce((sum, f) => sum + (f.attributes.Days || 0), 0);
+                }
+                
+                const availableDays = daysAccumulated - usedDays;
+                const requestedDays = daysRequested || 1;
+                
+                if (requestedDays > availableDays) {
+                    return res.status(400).json({ 
+                        error: `Insufficient time-off balance. You have ${Math.max(0, availableDays)} accumulated off-days available, but requested ${requestedDays}.` 
+                    });
+                }
+            } catch (capErr) {
+                console.warn('Accumulation cap check failed (non-blocking):', capErr.message);
+            }
+        }
         
         // Check for overlapping leaves (pending or approved)
         const existingLeaves = await queryFeatures({
@@ -1189,9 +1321,17 @@ app.post('/api/leaves', async (req, res) => {
                 try {
                     const [employeeEmail, managerEmail] = await Promise.all([
                         getEmployeeEmail(employeeId),
-                        getManagerEmail()
+                        (async () => {
+                            const manager = await getManagerForEmployee(employeeId);
+                            return manager?.Email || await getDirectorEmail(); 
+                        })()
                     ]);
                     
+                    console.log('--- NOTIFICATION DEBUG ---');
+                    console.log(`Resolved Employee Email: ${employeeEmail}`);
+                    console.log(`Resolved Manager Email: ${managerEmail}`);
+                    console.log('--------------------------');
+
                     await notifyNewRequest({
                         employeeName: employeeName || 'Unknown',
                         employeeEmail: employeeEmail,
@@ -1264,13 +1404,23 @@ app.put('/api/leaves/:objectId/approve', async (req, res) => {
                 (async () => {
                     try {
                         const employeeEmail = await getEmployeeEmail(originalRequest.EmployeeID);
+                        const manager = await getManagerForEmployee(originalRequest.EmployeeID);
+                        const managerEmail = manager?.Email || await getDirectorEmail();
+                        
+                        console.log('--- NOTIFICATION DEBUG (APPROVE) ---');
+                        console.log(`Resolved Employee Email: ${employeeEmail}`);
+                        console.log(`Resolved Manager Email: ${managerEmail}`);
+                        console.log('--------------------------');
+
                         await notifyApproved({
                             employeeName: originalRequest.EmployeeName || 'Unknown',
                             employeeEmail: employeeEmail,
+                            managerEmail: managerEmail,
                             leaveType: originalRequest.LeaveType,
                             startDate: new Date(originalRequest.StartDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
                             endDate: new Date(originalRequest.EndDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-                            daysRequested: originalRequest.DaysRequested
+                            daysRequested: originalRequest.DaysRequested || originalRequest.Days || 1,
+                            reason: originalRequest.Reason || 'No reason provided'
                         });
                     } catch (err) {
                         console.error('Webhook notification failed:', err);
@@ -1327,20 +1477,30 @@ app.put('/api/leaves/:objectId/reject', async (req, res) => {
         });
 
         if (response.updateResults && response.updateResults[0].success) {
-            console.log('Leave request rejected:', objectId);
+            console.log('Leave request rejected SUCCESS:', objectId, 'Result:', JSON.stringify(response.updateResults[0]));
             
             // Send notification to employee via Power Automate
             if (originalRequest) {
                 (async () => {
                     try {
                         const employeeEmail = await getEmployeeEmail(originalRequest.EmployeeID);
+                        const manager = await getManagerForEmployee(originalRequest.EmployeeID);
+                        const managerEmail = manager?.Email || await getDirectorEmail();
+
+                        console.log('--- NOTIFICATION DEBUG (REJECT) ---');
+                        console.log(`Resolved Employee Email: ${employeeEmail}`);
+                        console.log(`Resolved Manager Email: ${managerEmail}`);
+                        console.log('--------------------------');
+                        
                         await notifyRejected({
                             employeeName: originalRequest.EmployeeName || 'Unknown',
                             employeeEmail: employeeEmail,
+                            managerEmail: managerEmail,
                             leaveType: originalRequest.LeaveType,
                             startDate: new Date(originalRequest.StartDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
                             endDate: new Date(originalRequest.EndDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-                            daysRequested: originalRequest.DaysRequested,
+                            daysRequested: originalRequest.DaysRequested || originalRequest.Days || 1,
+                            reason: originalRequest.Reason || 'No reason provided',
                             rejectionReason: rejectionReason || 'No reason provided'
                         });
                     } catch (err) {
@@ -1403,7 +1563,7 @@ app.post('/api/leaves/:objectId/manager-extend', async (req, res) => {
                 attributes: {
                     OBJECTID: objectId,
                     EndDate: newEndDate,
-                    DaysRequested: originalRequest.DaysRequested + additionalDays
+                    Days: originalRequest.Days + additionalDays
                 }
             }],
             authentication
@@ -1422,6 +1582,10 @@ app.post('/api/leaves/:objectId/manager-extend', async (req, res) => {
                         authentication
                     });
                     const employeeEmail = empResponse.features?.[0]?.attributes?.Email;
+
+                    console.log('--- NOTIFICATION DEBUG (MANAGER EXTEND) ---');
+                    console.log(`Resolved Employee Email: ${employeeEmail}`);
+                    console.log('--------------------------');
 
                     await notifyManagerExtension({
                         employeeName: originalRequest.EmployeeName,
@@ -1536,7 +1700,13 @@ app.post('/api/leaves/:objectId/early-checkin', async (req, res) => {
             const employeeEmail = await getEmployeeEmail(originalRequest.EmployeeID);
             (async () => {
                 try {
-                    const managerEmail = await getManagerEmail();
+                    const manager = await getManagerForEmployee(originalRequest.EmployeeID);
+                    const managerEmail = manager?.Email || await getDirectorEmail();
+                    console.log('--- NOTIFICATION DEBUG (EARLY CHECKIN) ---');
+                    console.log(`Resolved Employee Email: ${employeeEmail}`);
+                    console.log(`Resolved Manager Email: ${managerEmail}`);
+                    console.log('--------------------------');
+
                     await notifyEarlyCheckin({
                         employeeName: originalRequest.EmployeeName,
                         employeeEmail: employeeEmail,
@@ -1657,7 +1827,13 @@ app.post('/api/leaves/:objectId/request-extension', async (req, res) => {
             const employeeEmail = await getEmployeeEmail(originalRequest.EmployeeID);
             (async () => {
                 try {
-                    const managerEmail = await getManagerEmail();
+                    const manager = await getManagerForEmployee(originalRequest.EmployeeID);
+                    const managerEmail = manager?.Email || await getDirectorEmail();
+                    console.log('--- NOTIFICATION DEBUG (EXTENSION REQUEST) ---');
+                    console.log(`Resolved Employee Email: ${employeeEmail}`);
+                    console.log(`Resolved Manager Email: ${managerEmail}`);
+                    console.log('--------------------------');
+
                     await notifyExtensionRequest({
                         employeeName: originalRequest.EmployeeName,
                         employeeEmail: employeeEmail,
@@ -1714,7 +1890,7 @@ app.put('/api/leaves/:objectId/approve-extension', async (req, res) => {
             attributes: {
                 OBJECTID: parseInt(objectId),
                 EndDate: requestedEnd.getTime(),
-                DaysRequested: originalRequest.DaysRequested + additionalDays,
+                Days: originalRequest.Days + additionalDays,
                 ModificationStatus: 'approved',
                 ModificationReviewedBy: reviewedBy,
                 ModificationReviewedDate: Date.now()
@@ -1762,11 +1938,15 @@ app.put('/api/leaves/:objectId/approve-extension', async (req, res) => {
             
             // Send notification to staff
             const employeeEmail = await getEmployeeEmail(originalRequest.EmployeeID);
+            const manager = await getManagerForEmployee(originalRequest.EmployeeID);
+            const managerEmail = manager?.Email || await getDirectorEmail();
+
             (async () => {
                 try {
                     await notifyExtensionApproved({
                         employeeName: originalRequest.EmployeeName,
                         employeeEmail: employeeEmail,
+                        managerEmail: managerEmail,
                         leaveType: originalRequest.LeaveType,
                         originalEndDate: originalEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
                         newEndDate: requestedEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -1828,11 +2008,15 @@ app.put('/api/leaves/:objectId/reject-extension', async (req, res) => {
             // Send notification to staff
             if (originalRequest) {
                 const employeeEmail = await getEmployeeEmail(originalRequest.EmployeeID);
+                const manager = await getManagerForEmployee(originalRequest.EmployeeID);
+                const managerEmail = manager?.Email || await getDirectorEmail();
+
                 (async () => {
                     try {
                         await notifyExtensionRejected({
                             employeeName: originalRequest.EmployeeName,
                             employeeEmail: employeeEmail,
+                            managerEmail: managerEmail,
                             leaveType: originalRequest.LeaveType,
                             requestedEndDate: 'Requested extension',
                             rejectionReason: rejectionReason || 'No reason provided'
@@ -1893,7 +2077,7 @@ app.post('/api/leaves/:objectId/manager-extend', async (req, res) => {
                 OBJECTID: parseInt(objectId),
                 OriginalEndDate: originalRequest.EndDate,
                 EndDate: requestedEnd.getTime(),
-                DaysRequested: originalRequest.DaysRequested + additionalDays,
+                Days: originalRequest.Days + additionalDays,
                 ModificationType: 'manager_extension',
                 ModificationReason: reason,
                 ModificationStatus: 'approved',
@@ -1944,11 +2128,20 @@ app.post('/api/leaves/:objectId/manager-extend', async (req, res) => {
             
             // Send notification to staff
             const employeeEmail = await getEmployeeEmail(originalRequest.EmployeeID);
+            const manager = await getManagerForEmployee(originalRequest.EmployeeID);
+            const managerEmail = manager?.Email || await getDirectorEmail();
+
             (async () => {
                 try {
+                    console.log('--- NOTIFICATION DEBUG (MANAGER EXTEND) ---');
+                    console.log(`Resolved Employee Email: ${employeeEmail}`);
+                    console.log(`Resolved Manager Email: ${managerEmail}`);
+                    console.log('--------------------------');
+
                     await notifyManagerExtension({
                         employeeName: originalRequest.EmployeeName,
                         employeeEmail: employeeEmail,
+                        managerEmail: managerEmail,
                         leaveType: originalRequest.LeaveType,
                         originalEndDate: originalEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
                         newEndDate: requestedEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -2283,7 +2476,7 @@ app.get('/api/admin/users', async (req, res) => {
         const response = await queryFeatures({
             url: EMPLOYEES_URL,
             where: '1=1',
-            outFields: 'OBJECTID,EmployeeID,Username,FirstName,LastName,Email,Role,Department,IsActive,ManagerID',
+            outFields: '*',
             orderByFields: 'LastName ASC',
             returnGeometry: false,
             authentication
@@ -2299,7 +2492,9 @@ app.get('/api/admin/users', async (req, res) => {
             role: f.attributes.Role,
             department: f.attributes.Department,
             isActive: f.attributes.IsActive === 1,
-            managerId: f.attributes.ManagerID
+            managerId: f.attributes.ManagerID,
+            passwordSet: f.attributes.PasswordHash !== 'PENDING_SETUP',
+            startDate: f.attributes.StartDate || null
         })) || [];
 
         res.json({ success: true, users });
@@ -2349,7 +2544,8 @@ app.post('/api/admin/users', async (req, res) => {
                 attributes: {
                     EmployeeID: employeeId,
                     Username: username,
-                    PasswordHash: password ? hashPassword(password) : null,
+                    // PasswordHash cannot be null in DB, use placeholder if not set
+                    PasswordHash: password ? hashPassword(password) : 'PENDING_SETUP',
                     FirstName: firstName,
                     LastName: lastName,
                     Email: email,
@@ -2386,7 +2582,7 @@ app.post('/api/admin/users', async (req, res) => {
                     
                     // If no password set, send setup link
                     if (!password && setupToken) {
-                        const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
+                        const appBaseUrl = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
                         const setupLink = `${appBaseUrl}/setup-password?token=${setupToken}`;
                         
                         await notifyPasswordSetupLink({
@@ -2411,6 +2607,7 @@ app.post('/api/admin/users', async (req, res) => {
                 passwordSetupRequired: !password
             });
         } else {
+            console.error('ArcGIS addFeatures failed:', JSON.stringify(result, null, 2));
             throw new Error('Failed to create user');
         }
     } catch (error) {
@@ -2419,12 +2616,77 @@ app.post('/api/admin/users', async (req, res) => {
     }
 });
 
+// Admin trigger password reset (sends email)
+app.post('/api/admin/users/:id/reset-password', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const authentication = getSession();
+
+        // Verify user exists first
+        const userQuery = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `OBJECTID = ${id}`,
+            outFields: 'OBJECTID,FirstName,LastName,Email,Username',
+            returnGeometry: false,
+            authentication
+        });
+
+        if (!userQuery.features || userQuery.features.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = userQuery.features[0].attributes;
+
+        // Generate reset token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenExpiry = Date.now() + (24 * 60 * 60 * 1000); // 24 hours (generous for admin reset)
+
+        // Update user with token
+        const updateResult = await updateFeatures({
+            url: EMPLOYEES_URL,
+            features: [{
+                attributes: {
+                    OBJECTID: user.OBJECTID,
+                    ResetToken: resetToken,
+                    ResetTokenExpiry: resetTokenExpiry,
+                    // Optionally set PasswordSet to 0 if we want to force "Pending" status? 
+                    // Let's keep it simple for now, just allow reset.
+                }
+            }],
+            authentication
+        });
+
+        if (updateResult.updateResults?.[0]?.success) {
+            // Send email
+            const appBaseUrl = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+            const resetLink = `${appBaseUrl}/reset-password?token=${resetToken}`;
+
+            await notifyPasswordResetLink({
+                firstName: user.FirstName,
+                lastName: user.LastName,
+                email: user.Email,
+                username: user.Username,
+                resetLink
+            });
+
+            console.log(`📧 Admin triggered password reset for ${user.Username}`);
+            res.json({ success: true, message: `Reset link sent to ${user.Email}` });
+        } else {
+            throw new Error('Failed to update user record');
+        }
+
+    } catch (error) {
+        console.error('Error initiating password reset:', error);
+        res.status(500).json({ error: 'Failed to initiate password reset' });
+    }
+});
+
 
 // Update user
 app.put('/api/admin/users/:objectId', async (req, res) => {
     try {
         const { objectId } = req.params;
-        const { firstName, lastName, email, role, department, managerId, isActive, username } = req.body;
+        const { firstName, lastName, email, role, department, managerId, isActive, username, startDate } = req.body;
 
         const authentication = getSession();
         
@@ -2452,6 +2714,9 @@ app.put('/api/admin/users/:objectId', async (req, res) => {
         if (managerId !== undefined) updateAttrs.ManagerID = managerId;
         if (isActive !== undefined) updateAttrs.IsActive = isActive ? 1 : 0;
         if (username !== undefined) updateAttrs.Username = username;
+        
+        // Don't include StartDate in main update (may not exist in schema)
+        // It will be attempted separately below
 
         const result = await updateFeatures({
             url: EMPLOYEES_URL,
@@ -2460,6 +2725,28 @@ app.put('/api/admin/users/:objectId', async (req, res) => {
         });
 
         if (result.updateResults?.[0]?.success) {
+            // Try to save StartDate separately (field may not exist in ArcGIS schema)
+            let startDateWarning = null;
+            if (startDate !== undefined) {
+                try {
+                    const sdResult = await updateFeatures({
+                        url: EMPLOYEES_URL,
+                        features: [{ attributes: {
+                            OBJECTID: parseInt(objectId),
+                            StartDate: startDate ? new Date(startDate).toISOString().split('T')[0] : null
+                        }}],
+                        authentication
+                    });
+                    if (!sdResult.updateResults?.[0]?.success) {
+                        startDateWarning = 'StartDate field may not exist in the database. Other changes were saved.';
+                        console.warn('[admin] StartDate save failed:', sdResult.updateResults?.[0]?.error);
+                    }
+                } catch (sdErr) {
+                    startDateWarning = 'StartDate field may not exist in the database. Other changes were saved.';
+                    console.warn('[admin] StartDate save error:', sdErr.message);
+                }
+            }
+            
             // Send manager assignment notification if manager changed
             if (managerId !== undefined && managerId !== previousManagerId && managerId) {
                 (async () => {
@@ -2508,7 +2795,7 @@ app.put('/api/admin/users/:objectId', async (req, res) => {
                 })();
             }
             
-            res.json({ success: true, message: 'User updated successfully' });
+            res.json({ success: true, message: 'User updated successfully', warning: startDateWarning || undefined });
         } else {
             throw new Error('Failed to update user');
         }
@@ -2559,21 +2846,37 @@ app.delete('/api/admin/users/:objectId', async (req, res) => {
         const { objectId } = req.params;
         const authentication = getSession();
 
-        // Soft delete by setting IsActive to 0
-        const result = await updateFeatures({
-            url: EMPLOYEES_URL,
-            features: [{
-                attributes: {
-                    OBJECTID: parseInt(objectId),
-                    IsActive: 0
-                }
-            }],
-            authentication
+        // Use direct applyEdits to avoid updateFeatures field alias validation issues
+        // Use batch applyEdits on FeatureServer root to avoid layer-level issues
+        // Layer ID is 0 for Employees
+        const response = await request(`${process.env.LEAVE_TRACKER_SERVICE_URL}/applyEdits`, {
+            params: {
+                edits: JSON.stringify([{
+                    id: 0,
+                    updates: [{
+                        attributes: {
+                            OBJECTID: parseInt(objectId),
+                            IsActive: 0
+                        }
+                    }]
+                }]),
+                f: 'json'
+            },
+            authentication,
+            httpMethod: 'POST'
         });
 
-        if (result.updateResults?.[0]?.success) {
+        console.log('Deactivation result for OBJECTID', objectId, ':', JSON.stringify(response, null, 2));
+        
+        // Batch applyEdits returns array of layer results
+        // Find result for layer 0 (Employees)
+        const layerResult = Array.isArray(response) ? response.find(r => r.id === 0) : response;
+        const success = layerResult?.updateResults?.[0]?.success;
+
+        if (success) {
             res.json({ success: true, message: 'User deactivated successfully' });
         } else {
+            console.error('Deactivation failed. Full result:', JSON.stringify(response, null, 2));
             throw new Error('Failed to delete user');
         }
     } catch (error) {
@@ -2625,6 +2928,200 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Get employee cycle status, days worked, and accumulated days
+app.get('/api/employees/:employeeId/cycle-status', async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        console.log(`[cycle-status] Fetching for employee: ${employeeId}`);
+        const authentication = getSession();
+
+        // 1. Get Employee Details
+        const employeeResponse = await queryFeatures({
+            url: EMPLOYEES_URL,
+            where: `EmployeeID = '${employeeId}'`,
+            outFields: '*',
+            returnGeometry: false,
+            authentication
+        });
+        
+        if (!employeeResponse.features || employeeResponse.features.length === 0) {
+            return res.status(404).json({ error: 'Employee not found' });
+        }
+
+        // 2. Get ALL approved leaves (future and past)
+        const leavesResponse = await queryFeatures({
+            url: LEAVE_REQUESTS_URL,
+            where: `EmployeeID = '${employeeId}' AND Status = 'approved'`,
+            outFields: '*',
+            returnGeometry: false,
+            authentication
+        });
+        
+        const approvedLeaves = leavesResponse.features ? leavesResponse.features.map(f => ({
+            startDate: new Date(f.attributes.StartDate),
+            endDate: new Date(f.attributes.EndDate),
+            leaveType: (f.attributes.LeaveType || 'Annual').toLowerCase()
+        })) : [];
+
+        // Sort leaves by start date
+        approvedLeaves.sort((a, b) => a.startDate - b.startDate);
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Determine start of calculation period
+        // Default: Jan 1st of current year (Annual Cycle)
+        let calculationStart = new Date(today.getFullYear(), 0, 1);
+        
+        // If employee has a StartDate in the current year that is AFTER Jan 1st, use that.
+        const empStartDate = employeeResponse.features[0].attributes.StartDate ? 
+            new Date(employeeResponse.features[0].attributes.StartDate) : null;
+            
+        if (empStartDate) {
+            empStartDate.setHours(0,0,0,0);
+            if (empStartDate > calculationStart) {
+                calculationStart = new Date(empStartDate);
+            }
+        }
+
+        // 3. Build leave map for all dates (for projection + counting)
+        const leaveMap = new Map();
+        approvedLeaves.forEach(leave => {
+            const start = new Date(leave.startDate);
+            const end = new Date(leave.endDate);
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                leaveMap.set(d.toISOString().split('T')[0], leave.leaveType);
+            }
+        });
+
+        // 4. Count work days from calculation start to today (excluding leave days)
+        //    This is used for the 22/8 cycle calculation
+        let totalWorkDaysSinceYearStart = 0;
+        for (let d = new Date(calculationStart); d <= today; d.setDate(d.getDate() + 1)) {
+            const dateKey = d.toISOString().split('T')[0];
+            if (!leaveMap.has(dateKey)) {
+                totalWorkDaysSinceYearStart++;
+            }
+        }
+
+        // 5. Calculate off-days accumulated based on 22-on/8-off cycle
+        //    For every 22 work days, employee earns 8 off-days
+        const OFF_DAYS_PER_CYCLE = 8;
+        const WORK_DAYS_PER_CYCLE = 22;
+        const accumulationRate = OFF_DAYS_PER_CYCLE / WORK_DAYS_PER_CYCLE; // ~0.3636
+        
+        // Total off-days earned so far
+        const totalOffDaysEarned = Math.floor(totalWorkDaysSinceYearStart * accumulationRate);
+        
+        // Subtract off-days already taken (approved leave days that have passed)
+        let offDaysTaken = 0;
+        for (let d = new Date(calculationStart); d <= today; d.setDate(d.getDate() + 1)) {
+            const dateKey = d.toISOString().split('T')[0];
+            if (leaveMap.has(dateKey)) {
+                offDaysTaken++;
+            }
+        }
+        
+        const daysAccumulated = Math.max(0, totalOffDaysEarned - offDaysTaken);
+
+        // 6. Determine current status
+        let currentStatus = {
+            isWorkDay: true,
+            daysRemaining: 0,
+            phase: 'work',
+            daysWorked: 0,
+            daysAccumulated: daysAccumulated
+        };
+
+        // -- Active leave check --
+        const activeLeave = approvedLeaves.find(leave => {
+            const start = new Date(leave.startDate); start.setHours(0,0,0,0);
+            const end = new Date(leave.endDate); end.setHours(0,0,0,0);
+            return today >= start && today <= end;
+        });
+        
+        if (activeLeave) {
+            currentStatus.isWorkDay = false;
+            currentStatus.phase = 'off';
+            currentStatus.daysWorked = 0;
+            
+            const end = new Date(activeLeave.endDate); end.setHours(0,0,0,0);
+            const diffTime = Math.abs(end - today);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            currentStatus.daysRemaining = diffDays;
+        } else {
+            currentStatus.isWorkDay = true;
+            currentStatus.phase = 'work';
+            
+            // Next Leave
+            const nextLeave = approvedLeaves.find(leave => {
+                const start = new Date(leave.startDate); start.setHours(0,0,0,0);
+                return start > today;
+            });
+            
+            if (nextLeave) {
+                const start = new Date(nextLeave.startDate); start.setHours(0,0,0,0);
+                const diffTime = Math.abs(start - today);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                currentStatus.daysRemaining = diffDays;
+            } else {
+                currentStatus.daysRemaining = 0;
+            }
+            
+            // Days Worked (since last leave ended or start of year)
+            const pastLeaves = approvedLeaves.filter(leave => {
+                const end = new Date(leave.endDate); end.setHours(0,0,0,0);
+                return end < today;
+            });
+            
+            let lastEndDate = new Date(calculationStart);
+            if (pastLeaves.length > 0) {
+                const lastLeave = pastLeaves[pastLeaves.length - 1];
+                lastEndDate = new Date(lastLeave.endDate);
+            }
+            
+            const timeSince = today - lastEndDate; 
+            const daysSince = Math.floor(timeSince / (1000 * 60 * 60 * 24));
+            currentStatus.daysWorked = Math.max(0, daysSince);
+        }
+
+        // 7. Projection — from Jan 1 of current year to end of year (includes history)
+        const projection = [];
+        const startOfYear = new Date(today.getFullYear(), 0, 1);
+        const nextYear = new Date(today.getFullYear() + 1, 0, 1);
+        
+        for (let d = new Date(startOfYear); d < nextYear; d.setDate(d.getDate() + 1)) {
+            const dateKey = d.toISOString().split('T')[0];
+            const isPast = d < today;
+            
+            if (leaveMap.has(dateKey)) {
+                projection.push({
+                    date: dateKey,
+                    type: 'leave',
+                    leaveType: leaveMap.get(dateKey),
+                    isProjected: !isPast
+                });
+            } else {
+                projection.push({
+                    date: dateKey,
+                    type: 'work',
+                    isProjected: !isPast
+                });
+            }
+        }
+
+        res.json({
+            status: currentStatus,
+            projection
+        });
+
+    } catch (error) {
+        console.error('[cycle-status] Error calculating cycle status:', error.message);
+        console.error('[cycle-status] Stack:', error.stack);
+        res.status(500).json({ error: 'Failed to calculate cycle status', details: error.message });
+    }
+});
+
 
 // JSON 404 handler for API routes
 app.use('/api', (req, res) => {
@@ -2633,6 +3130,13 @@ app.use('/api', (req, res) => {
 
 // ==================== DEPLOYMENT (Serve Client) ====================
 
+// System Refresh: Resets the global ArcGIS session to force re-authentication
+app.post('/api/system/refresh', (req, res) => {
+    console.log('🔄 System Refresh requested: Resetting ArcGIS session');
+    session = null;
+    res.json({ success: true, message: 'ArcGIS session reset successfully' });
+});
+
 // Serve static files from the client build directory
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
@@ -2640,6 +3144,7 @@ app.use(express.static(path.join(__dirname, '../client/dist')));
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
 });
+
 
 // Start Server
 app.listen(PORT, () => {

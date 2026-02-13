@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
-import { KeyRound, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Key, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import './SetupPassword.css' // Reuse same styles
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function ResetPassword() {
-  const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
-  const token = searchParams.get('token')
+  const token = new URLSearchParams(window.location.search).get('token')
   
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -87,7 +84,7 @@ export default function ResetPassword() {
       
       if (data.success) {
         setSuccess(true)
-        setTimeout(() => navigate('/login'), 3000)
+        setTimeout(() => { window.location.href = '/login' }, 3000)
       } else {
         setError(data.error || 'Failed to reset password')
       }
@@ -128,7 +125,7 @@ export default function ResetPassword() {
           <AlertCircle size={64} className="error-icon" />
           <h1>Invalid Reset Link</h1>
           <p>{error}</p>
-          <button onClick={() => navigate('/login')} className="btn-primary">
+          <button onClick={() => { window.location.href = '/login' }} className="btn-primary">
             Go to Login
           </button>
         </div>
@@ -140,7 +137,7 @@ export default function ResetPassword() {
     <div className="setup-password-page">
       <div className="setup-password-container">
         <div className="setup-header">
-          <KeyRound size={48} className="lock-icon" />
+          <Key size={48} className="lock-icon" />
           <h1>Reset Your Password</h1>
           <p className="welcome-text">
             Hi, <strong>{userInfo.firstName} {userInfo.lastName}</strong>!

@@ -378,7 +378,7 @@ async function main() {
     const token = await getToken();
     
     // Create Feature Service
-    const serviceName = 'LeaveTracker';
+    const serviceName = 'LeaveTracker_V3';
     const serviceResult = await createFeatureService(token, serviceName);
     
     if (serviceResult && serviceResult.serviceurl) {

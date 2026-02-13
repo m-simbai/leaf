@@ -1,0 +1,52 @@
+🔍 Checking recent leave requests...
+Found 7 recent requests:
+
+Request ID: REQ1770977373730
+  Data Object ID: 7
+  Status: rejected
+  Employee: Test User (ID: 'EMP1770878943547')
+  Type: annual
+  Email Check: simbaimutematemi@gmail.com
+-----------------------------------
+Request ID: REQ1770977244824
+  Data Object ID: 6
+  Status: rejected
+  Employee: Simbai Mutematemi (ID: 'EMP_ADMIN_01')
+  Type: Annual
+  Email Check: p.tagwireyi@cheworeconservation.org
+-----------------------------------
+Request ID: REQ1770976401685
+  Data Object ID: 5
+  Status: rejected
+  Employee: Test User (ID: 'EMP1770878943547')
+  Type: sick
+  Email Check: simbaimutematemi@gmail.com
+-----------------------------------
+Request ID: REQ1770974061703
+  Data Object ID: 4
+  Status: rejected
+  Employee: Test User (ID: 'EMP1770878943547')
+  Type: annual
+  Email Check: simbaimutematemi@gmail.com
+-----------------------------------
+Request ID: REQ1770973255002
+  Data Object ID: 3
+  Status: rejected
+  Employee: Test User (ID: 'EMP1770878943547')
+  Type: annual
+  Email Check: simbaimutematemi@gmail.com
+-----------------------------------
+Request ID: REQ1770972430445
+  Data Object ID: 2
+  Status: rejected
+  Employee: Test User (ID: 'EMP1770878943547')
+  Type: annual
+  Email Check: simbaimutematemi@gmail.com
+-----------------------------------
+Request ID: REQ1770971693769
+  Data Object ID: 1
+  Status: rejected
+  Employee: Test User (ID: 'EMP1770878943547')
+  Type: annual
+  Email Check: simbaimutematemi@gmail.com
+-----------------------------------

@@ -16,28 +16,29 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [daysRequested, setDaysRequested] = useState(0)
+  const [accumulatedDays, setAccumulatedDays] = useState(null)
+
+  // No longer needed: Dashboard fetches live balance and passes as prop
 
   // Calculate business days between two dates
+  // Calculate calendar days between two dates (inclusive)
+  // For 22-on/8-off cycle, weekends count as work/leave days
   const calculateDays = (start, end) => {
     if (!start || !end) return 0
     const startDate = new Date(start)
     const endDate = new Date(end)
     
+    // Reset hours to ensure clean day diff
+    startDate.setHours(0, 0, 0, 0)
+    endDate.setHours(0, 0, 0, 0)
+
     if (endDate < startDate) return 0
 
-    let count = 0
-    const current = new Date(startDate)
+    // Calculate difference in days + 1 (inclusive)
+    const diffTime = Math.abs(endDate - startDate)
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
     
-    while (current <= endDate) {
-      const dayOfWeek = current.getDay()
-      // Skip weekends
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        count++
-      }
-      current.setDate(current.getDate() + 1)
-    }
-    
-    return count
+    return diffDays
   }
 
   // Update days when dates change
@@ -49,7 +50,7 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
   // Get available balance for selected leave type
   const getAvailableBalance = () => {
     switch (formData.leaveType) {
-      case 'annual': return leaveBalance.annual
+      case 'annual': return accumulatedDays !== null ? accumulatedDays : leaveBalance.annual
       case 'sick': return leaveBalance.sick
       case 'other': return leaveBalance.other
       default: return 0
@@ -84,6 +85,14 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
       
       if (end < start) {
         newErrors.endDate = 'End date must be after start date'
+      }
+      
+      // Block same-day leave (start and end must be different)
+      const startDay = new Date(start).setHours(0,0,0,0)
+      const endDay = new Date(end).setHours(0,0,0,0)
+      
+      if (startDay === endDay) {
+        newErrors.endDate = 'Leave must be at least 2 days (Start and End dates cannot be the same)'
       }
       
       if (daysRequested > getAvailableBalance()) {
@@ -143,12 +152,15 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
     }
   }
 
-  // Get today's date in YYYY-MM-DD format for min date
-  const today = new Date().toISOString().split('T')[0]
+  // Min date is tomorrow (can't request leave starting today)
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(0, 0, 0, 0)
+  const minLeaveDate = tomorrow
 
   // Leave type options
   const leaveTypes = [
-    { id: 'annual', label: 'Time-Off', icon: '🏖️', balance: leaveBalance.annual },
+    { id: 'annual', label: 'Time-Off', icon: '🏖️', balance: accumulatedDays !== null ? accumulatedDays : leaveBalance.annual },
     { id: 'sick', label: 'Sick Leave', icon: '🏥', balance: leaveBalance.sick },
     { id: 'other', label: 'Compassionate Leave', icon: '📋', balance: leaveBalance.other },
   ]
@@ -247,7 +259,7 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
                     setFormData(prev => ({ ...prev, startDate: dateStr }));
                     if (errors.startDate) setErrors(prev => ({ ...prev, startDate: null }))
                   }}
-                  minDate={new Date()}
+                  minDate={minLeaveDate}
                   dateFormat="dd/MM/yyyy"
                   placeholderText="Select start date"
                   customInput={<CustomDateInput className={`custom-datepicker-input ${errors.startDate ? 'error' : ''}`} />}
@@ -327,7 +339,7 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
                     setFormData(prev => ({ ...prev, endDate: dateStr }));
                     if (errors.endDate) setErrors(prev => ({ ...prev, endDate: null }))
                   }}
-                  minDate={formData.startDate ? new Date(formData.startDate) : new Date()}
+                  minDate={formData.startDate ? (() => { const d = new Date(formData.startDate); d.setDate(d.getDate() + 1); return d; })() : minLeaveDate}
                   dateFormat="dd/MM/yyyy"
                   placeholderText="Select end date"
                   customInput={<CustomDateInput className={`custom-datepicker-input ${errors.endDate ? 'error' : ''}`} />}
@@ -400,7 +412,7 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
             <div className={`days-calculated ${daysRequested > getAvailableBalance() ? 'exceeds' : ''}`}>
               <Clock size={18} />
               <span>
-                <strong>{daysRequested}</strong> business day{daysRequested !== 1 ? 's' : ''} requested
+                <strong>{daysRequested}</strong> day{daysRequested !== 1 ? 's' : ''} requested
                 {daysRequested > getAvailableBalance() && (
                   <span className="exceeds-warning"> (exceeds available balance)</span>
                 )}
@@ -443,7 +455,7 @@ function LeaveRequest({ user, onSubmit, onCancel, leaveBalance = { annual: 15, s
           <button 
             type="submit" 
             className="btn-primary"
-            disabled={submitting || daysRequested === 0}
+            disabled={submitting || daysRequested === 0 || daysRequested > getAvailableBalance()}
           >
             {submitting ? (
               <>

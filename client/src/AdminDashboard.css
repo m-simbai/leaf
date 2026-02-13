@@ -23,7 +23,7 @@
 }
 
 .header-icon {
-  color: #16a34a;
+  color: var(--color-mopane);
 }
 
 .header-left h1 {
@@ -47,15 +47,15 @@
 }
 
 .alert.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(153, 66, 33, 0.1);
+  color: var(--color-red-sand);
+  border: 1px solid rgba(153, 66, 33, 0.2);
 }
 
 .alert.success {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  background: rgba(105, 117, 89, 0.1);
+  color: var(--color-moss);
+  border: 1px solid rgba(105, 117, 89, 0.2);
 }
 
 /* Stats */
@@ -85,10 +85,12 @@
   color: white;
 }
 
-.stat-icon.users { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
-.stat-icon.active { background: linear-gradient(135deg, #22c55e, #4ade80); }
-.stat-icon.managers { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
-.stat-icon.staff { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+/* Updated to Brand Palette */
+.stat-icon.users { background: var(--color-mopane); }      /* Users -> Mopane */
+.stat-icon.active { background: var(--color-moss); }       /* Active -> Moss */
+.stat-icon.managers { background: var(--color-red-sand); } /* Managers -> Red Sand */
+.stat-icon.staff { background: var(--color-lichen); color: var(--color-mopane); } /* Staff -> Lichen */
+.stat-icon.pending { background: var(--color-lichen); color: var(--color-mopane); } /* Pending -> Lichen */
 
 .stat-info {
   display: flex;
@@ -186,7 +188,7 @@
 }
 
 .filter-toggle input:checked + .toggle-slider {
-  background-color: #3b82f6;
+  background-color: var(--color-moss);
 }
 
 .filter-toggle input:checked + .toggle-slider::before {
@@ -263,19 +265,19 @@
   background: var(--bg-input);
 }
 
-/* Inactive Row Styling - transparent orange */
+/* Inactive Row Styling - transparent red sand */
 .users-table tbody tr.inactive {
-  background-color: rgba(251, 191, 36, 0.1);
+  background-color: rgba(153, 66, 33, 0.05);
 }
 
 .users-table tbody tr.inactive .user-avatar {
-  filter: grayscale(50%);
-  opacity: 0.8;
+  filter: grayscale(100%);
+  opacity: 0.6;
 }
 
 .users-table tbody tr.inactive .user-name {
   text-decoration: line-through;
-  text-decoration-color: rgba(245, 158, 11, 0.6);
+  text-decoration-color: rgba(153, 66, 33, 0.4);
 }
 
 /* User Cell */
@@ -299,9 +301,9 @@
   flex-shrink: 0;
 }
 
-.user-avatar.staff { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
-.user-avatar.manager { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
-.user-avatar.admin { background: linear-gradient(135deg, #16a34a, #22c55e); }
+.user-avatar.staff { background: var(--color-lichen); color: var(--color-mopane); }
+.user-avatar.manager { background: var(--color-red-sand); }
+.user-avatar.admin { background: var(--color-mopane); }
 
 .user-info {
   display: flex;
@@ -345,18 +347,18 @@
 }
 
 .role-badge.staff {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
+  background: rgba(163, 167, 142, 0.2);
+  color: var(--color-mopane);
 }
 
 .role-badge.manager {
-  background: rgba(139, 92, 246, 0.15);
-  color: #8b5cf6;
+  background: rgba(153, 66, 33, 0.15);
+  color: var(--color-red-sand);
 }
 
 .role-badge.admin {
-  background: rgba(22, 163, 74, 0.15);
-  color: #16a34a;
+  background: rgba(22, 37, 24, 0.15);
+  color: var(--color-mopane);
 }
 
 .status-badge {
@@ -370,21 +372,27 @@
 }
 
 .status-badge.on-duty {
-  background: rgba(22, 163, 74, 0.15);
-  color: #15803d; /* Green-700 for better contrast */
-  border: 1px solid rgba(22, 163, 74, 0.2);
+  background: rgba(105, 117, 89, 0.15);
+  color: var(--color-moss);
+  border: 1px solid rgba(105, 117, 89, 0.2);
 }
 
 .status-badge.on-leave {
-  background: rgba(245, 158, 11, 0.15);
-  color: #b45309; /* Amber-700 for better contrast */
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(163, 167, 142, 0.2);
+  color: var(--color-mopane);
+  border: 1px solid rgba(163, 167, 142, 0.2);
+}
+
+.status-badge.pending {
+  background: rgba(163, 167, 142, 0.2);
+  color: var(--color-mopane);
+  border: 1px solid rgba(163, 167, 142, 0.2);
 }
 
 .status-badge.inactive {
-  background: rgba(239, 68, 68, 0.1);
-  color: #b91c1c; /* Red-700 */
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(153, 66, 33, 0.1);
+  color: var(--color-red-sand);
+  border: 1px solid rgba(153, 66, 33, 0.2);
 }
 
 /* Action Buttons */
@@ -407,42 +415,42 @@
 }
 
 .btn-icon.edit {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  background: rgba(105, 117, 89, 0.1);
+  color: var(--color-moss);
 }
 
 .btn-icon.edit:hover {
-  background: #3b82f6;
+  background: var(--color-moss);
   color: white;
 }
 
 .btn-icon.key {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
+  background: rgba(163, 167, 142, 0.2);
+  color: var(--color-mopane);
 }
 
 .btn-icon.key:hover {
-  background: #f59e0b;
-  color: white;
+  background: var(--color-lichen);
+  color: var(--color-mopane);
 }
 
 .btn-icon.delete {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: rgba(153, 66, 33, 0.1);
+  color: var(--color-red-sand);
 }
 
 .btn-icon.delete:hover {
-  background: #ef4444;
+  background: var(--color-red-sand);
   color: white;
 }
 
 .btn-icon.reactivate {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
+  background: rgba(22, 37, 24, 0.1);
+  color: var(--color-mopane);
 }
 
 .btn-icon.reactivate:hover {
-  background: #22c55e;
+  background: var(--color-mopane);
   color: white;
 }
 
@@ -452,7 +460,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #16a34a, #22c55e);
+  background: var(--color-mopane);
   color: white;
   border: none;
   border-radius: 10px;
@@ -465,13 +473,13 @@
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(22, 163, 74, 0.3);
+  box-shadow: 0 8px 20px rgba(22, 37, 24, 0.2);
 }
 
 /* Danger Button */
 .btn-danger {
   padding: 12px 24px;
-  background: #ef4444;
+  background: var(--color-red-sand);
   color: white;
   border: none;
   border-radius: 10px;
@@ -482,9 +490,9 @@
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #dc2626;
+  background: #7d351b; /* Darker red sand */
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 12px rgba(153, 66, 33, 0.3);
 }
 
 .btn-danger:disabled {
@@ -493,12 +501,12 @@
 }
 
 .modal-icon.danger {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-red-sand);
+  background: rgba(153, 66, 33, 0.1);
 }
 
 .modal-content.danger {
-  border-top: 4px solid #ef4444;
+  border-top: 4px solid var(--color-red-sand);
 }
 
 .error-message.small {
@@ -507,7 +515,7 @@
   padding: 0;
   background: none;
   border: none;
-  color: #ef4444;
+  color: var(--color-red-sand);
 }
 
 /* Form Rows */
@@ -585,14 +593,14 @@
 }
 
 .admin-tab.active {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  background: var(--color-moss);
   color: white;
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+  box-shadow: 0 2px 8px rgba(105, 117, 89, 0.3);
 }
 
 /* Header Icon Colors */
 .header-icon.assignments {
-  color: #8b5cf6;
+  color: var(--color-red-sand);
 }
 
 /* ==================== Staff Assignments ==================== */
@@ -609,7 +617,8 @@
 }
 
 .stat-icon.warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--color-lichen);
+  color: var(--color-mopane);
 }
 
 .assignments-table-container {
@@ -647,11 +656,11 @@
 }
 
 .assignments-table tr.unassigned {
-  background: rgba(251, 191, 36, 0.05);
+  background: rgba(163, 167, 142, 0.1);
 }
 
 .assignments-table tr.unassigned td:first-child {
-  border-left: 3px solid #f59e0b;
+  border-left: 3px solid var(--color-lichen);
 }
 
 /* Manager Select Dropdown */
@@ -670,13 +679,13 @@
 }
 
 .manager-select:hover {
-  border-color: #16a34a;
+  border-color: var(--color-moss);
 }
 
 .manager-select:focus {
   outline: none;
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+  border-color: var(--color-moss);
+  box-shadow: 0 0 0 3px rgba(105, 117, 89, 0.1);
 }
 
 .manager-select option {
@@ -685,12 +694,12 @@
 
 /* Permanent Delete Button */
 .btn-icon.permanent-delete {
-  background: rgba(127, 29, 29, 0.15);
-  color: #991b1b;
+  background: rgba(153, 66, 33, 0.15);
+  color: var(--color-red-sand);
 }
 
 .btn-icon.permanent-delete:hover {
-  background: #991b1b;
+  background: var(--color-red-sand);
   color: white;
 }
 
@@ -700,11 +709,11 @@
   align-items: flex-start;
   gap: 12px;
   padding: 16px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(153, 66, 33, 0.05);
+  border: 1px solid rgba(153, 66, 33, 0.25);
   border-radius: 10px;
   margin: 0 24px;
-  color: #991b1b;
+  color: var(--color-red-sand);
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -716,9 +725,9 @@
 
 .permanent-delete-warning p {
   margin-top: 4px;
-  color: #7f1d1d;
+  color: var(--color-red-sand);
 }
 
 .modal-content.permanent-delete {
-  border-top: 4px solid #991b1b;
+  border-top: 4px solid var(--color-red-sand);
 }
