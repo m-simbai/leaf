@@ -503,7 +503,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
             }
             
             // Send reset link via webhook
-            const appBaseUrl = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+            const appBaseUrl = (process.env.APP_BASE_URL || 'https://leaf-ycmt.onrender.com').replace(/\/$/, '');
             const resetLink = `${appBaseUrl}/reset-password?token=${resetToken}`;
             
             await notifyPasswordResetLink({
@@ -819,7 +819,7 @@ app.get('/api/auth/approve-assignment/:token', async (req, res) => {
     try {
         const { token } = req.params;
         const authentication = getSession();
-        const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
+        const APP_BASE_URL = process.env.APP_BASE_URL || 'https://leaf-ycmt.onrender.com';
         
         // Find staff with this assignment token
         const response = await queryFeatures({
@@ -883,7 +883,7 @@ app.get('/api/auth/approve-assignment/:token', async (req, res) => {
 
     } catch (error) {
         console.error('Approve assignment error:', error);
-        const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
+        const APP_BASE_URL = process.env.APP_BASE_URL || 'https://leaf-ycmt.onrender.com';
         res.redirect(`${APP_BASE_URL}/assignment-result?status=error`);
     }
 });
@@ -894,7 +894,7 @@ app.get('/api/auth/reject-assignment/:token', async (req, res) => {
         const { token } = req.params;
         const reason = req.query.reason || '';
         const authentication = getSession();
-        const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
+        const APP_BASE_URL = process.env.APP_BASE_URL || 'https://leaf-ycmt.onrender.com';
         
         // Find staff with this assignment token
         const response = await queryFeatures({
@@ -958,7 +958,7 @@ app.get('/api/auth/reject-assignment/:token', async (req, res) => {
 
     } catch (error) {
         console.error('Reject assignment error:', error);
-        const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
+        const APP_BASE_URL = process.env.APP_BASE_URL || 'https://leaf-ycmt.onrender.com';
         res.redirect(`${APP_BASE_URL}/assignment-result?status=error`);
     }
 });
@@ -2597,7 +2597,7 @@ app.post('/api/admin/users', async (req, res) => {
                     
                     // If no password set, send setup link
                     if (!password && setupToken) {
-                        const appBaseUrl = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+                        const appBaseUrl = (process.env.APP_BASE_URL || 'https://leaf-ycmt.onrender.com').replace(/\/$/, '');
                         const setupLink = `${appBaseUrl}/setup-password?token=${setupToken}`;
                         
                         await notifyPasswordSetupLink({
@@ -2673,7 +2673,7 @@ app.post('/api/admin/users/:id/reset-password', async (req, res) => {
 
         if (updateResult.updateResults?.[0]?.success) {
             // Send email
-            const appBaseUrl = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+            const appBaseUrl = (process.env.APP_BASE_URL || 'https://leaf-ycmt.onrender.com').replace(/\/$/, '');
             const resetLink = `${appBaseUrl}/reset-password?token=${resetToken}`;
 
             await notifyPasswordResetLink({
