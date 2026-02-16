@@ -1,0 +1,52 @@
+﻿# Server Configuration
+PORT=3000
+
+# ArcGIS OAuth 2.0 Credentials
+# Obtain these from your ArcGIS Portal/AGOL Content -> OAuth 2.0 Item
+ARCGIS_CLIENT_ID=p6Ac8fYKpd2aj6yZ
+ARCGIS_CLIENT_SECRET=8d5b27b95a4142648edc5f2ae66ed676
+
+# ArcGIS Organization URL
+ARCGIS_ORG_URL=https://uniwits.maps.arcgis.com
+
+# ArcGIS User Credentials (for creating Feature Services)
+ARCGIS_USERNAME=3050485_uniwits
+ARCGIS_PASSWORD=swimzie11
+
+# ArcGIS Feature Service URL (Old Survey123)
+# The URL to the Feature Layer (Dashboard View)
+FEATURE_SERVICE_URL=https://services5.arcgis.com/7XFZFIRClYfgIvW4/arcgis/rest/services/LeaveTracker_V3/FeatureServer
+LEAVE_TRACKER_SERVICE_URL=https://services5.arcgis.com/7XFZFIRClYfgIvW4/arcgis/rest/services/LeaveTracker_V3/FeatureServer
+EMPLOYEES_TABLE_URL=https://services5.arcgis.com/7XFZFIRClYfgIvW4/arcgis/rest/services/LeaveTracker_V3/FeatureServer/0
+LEAVE_REQUESTS_TABLE_URL=https://services5.arcgis.com/7XFZFIRClYfgIvW4/arcgis/rest/services/LeaveTracker_V3/FeatureServer/1
+DEPARTMENTS_TABLE_URL=https://services5.arcgis.com/7XFZFIRClYfgIvW4/arcgis/rest/services/LeaveTracker_V3/FeatureServer/2
+
+# Power Automate Webhook URLs (Replace with your actual URLs from Power Automate)
+# Create flows at https://make.powerautomate.com with "When an HTTP request is received" trigger
+WEBHOOK_NEW_REQUEST=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a4614f688925417782885d1a362b5e2d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=uyHKQRo-g5ow9HeGOjqSzgXSHC0qjTbk16IMGGfDPJE
+WEBHOOK_APPROVED=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/70f063c1e6b047aebb34da749e91730b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=gjzIvl7YeHYGMAJsez7nitJ6FHGhfXoUeWPbRey1MYA
+WEBHOOK_REJECTED=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/59778f74489b4e71931ac670908e129c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=EChScfTgkDOmBWDEhBL_FuwpTUxo_3HGs2DLhlUrMJk
+
+
+
+# Leave Modification Webhook URLs (Add these after creating Power Automate flows)
+WEBHOOK_EARLY_CHECKIN=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9cc374dc0a2d44398dd1ab898b60d844/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=kmIlNzJlfAKympNoYp8JPS_lyt5EfGoLFAuL_-94pCk
+WEBHOOK_EXTENSION_REQUEST=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/858ab238b5e9482e8512867ec9b59c56/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=thbdQCoCRaIg7pJDIWNCg45kQHVujAWGRQzMwm4Oyjk
+WEBHOOK_EXTENSION_APPROVED=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c4050853eebd44419ef765249420ac0e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Z_2IV-7ETTyReQjyuvyaQm_pTRwZFwZeUj3c4vzZ1nA
+WEBHOOK_EXTENSION_REJECTED=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/87faf3c33ba948d0aab7ea63a081c18f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nWYZUpMar1keywypfWLZ_FKv38EyyKYOixsranDtuBE
+WEBHOOK_MANAGER_EXTENSION=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/23ca119e49aa42b388318ca75dee7244/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=M3suZ6UNoL6Cr_6qJMnqgFVuYmxkCojWJ0ciR7xJY4E
+
+# New Webhooks (Configure after creating Power Automate flows)
+WEBHOOK_ACCOUNT_CREATED=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/13c7c0d4066748c99a11fe57a46bd0f5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=YSrijMgvvfEyETleGpq7WpxPJLqgS0UqOZw3eTNyjBY
+WEBHOOK_PASSWORD_SETUP_LINK=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/fe821eb4778542b48f5950d2fffb4c87/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2hlHGDywotCbUz42J4gcHSDI2p5upOlIbtb5Svs8dqI
+WEBHOOK_MANAGER_ASSIGNMENT=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/78f3780136804abea3b5781efc4d0994/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=qqGmKfRATp8N5bMqcbgO-5zg1fbWMRrpH-ynZ1AiP28
+WEBHOOK_PASSWORD_RESET_LINK=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/4238982cf5a2413080588ee86658fc0a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Dv3JKSoM5aNirjTWOEex596J-sCdZT2V_-XY5BIaBgk
+
+# Assignment Approval Webhooks
+WEBHOOK_ASSIGNMENT_REQUEST=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/16b306620e4a4588973745cee93fea54/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Zy3M6VBCV4kV0RTcO-uDkQtLiJSNMwLsHwWY87-llas
+WEBHOOK_ASSIGNMENT_APPROVED=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2b7e050cfbd24246a1b9d60e0332c882/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AApEagQ__Z0n7wDkg0HDlZPwQVP7C9RTUgJjGe3JZOc
+WEBHOOK_ASSIGNMENT_REJECTED=https://defaultd07d87fbda4b41b2a7b0df1c10627f.2a.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ab24798d89ff44da874b4700f13b0bdd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VKzJzkIZ7-5NW44-9z2VSNMdz1xM-Udv1GwfeVvH3d0
+
+# App URL (for generating setup/reset links)
+APP_BASE_URL=https://leaf-ycmt.onrender.com
+#this only base url is https://leaf-ycmt.onrender.com

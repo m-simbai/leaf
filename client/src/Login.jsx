@@ -102,61 +102,23 @@ function Login({ onLogin }) {
   return (
     <div className="login-page light">
 
-      {/* Animated Background Elements (Now visible on mobile too) */}
-      <div className="bg-shapes">
-        <div className="shape shape-1"></div>
-        <div className="shape shape-2"></div>
-        <div className="shape shape-3"></div>
-      </div>
 
-      <div className="floating-leaves">
-        <span className="leaf l1">🍃</span>
-        <span className="leaf l2">🍂</span>
-        <span className="leaf l3">🌿</span>
-        <span className="leaf l4">🍃</span>
-      </div>
 
       {/* Left Panel - Branding (Desktop Only Content) */}
       <div className="branding-panel">
+        <img src="/baobab.png" alt="Chewore Safari" className="branding-bg" />
         <div className="branding-content">
           {/* Logo Header */}
+          {/* Top: Logo */ }
           <div className="brand-header-flex">
-            <div className="brand-logo">
-              <img src="/logo.svg" alt="Leaf Tracker" className="brand-logo-img" />
-            </div>
+            <img src="/logo.svg" alt="Leaf Tracker" className="brand-logo-img" />
             <h1 className="brand-title">Leaf Tracker</h1>
           </div>
-          <p className="brand-tagline">Streamline your leave management with ease</p>
 
-          {/* Feature List */}
-          <div className="feature-list">
-            <div className="feature-item">
-              <div className="feature-icon">
-                <Calendar size={20} />
-              </div>
-              <div className="feature-text">
-                <strong>Easy scheduling</strong>
-                <span>Track leaves with intuitive calendar</span>
-              </div>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon">
-                <CheckCircle size={20} />
-              </div>
-              <div className="feature-text">
-                <strong>Quick approvals</strong>
-                <span>Managers approve with one click</span>
-              </div>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon">
-                <Shield size={20} />
-              </div>
-              <div className="feature-text">
-                <strong>Secure & reliable</strong>
-                <span>Enterprise-grade security</span>
-              </div>
-            </div>
+          {/* Bottom: Quote/Testimonial style */ }
+          <div className="brand-quote">
+            <h3>"Efficiency is doing things right; effectiveness is doing the right things."</h3>
+            <p>Peter Drucker</p>
           </div>
         </div>
       </div>
@@ -326,7 +288,7 @@ function Login({ onLogin }) {
           )}
 
           <p className="signup-text">
-            Don't have an account? <a href="#">Contact Administrator</a>
+            Don't have an account? <a href="mailto:it.support@cheworeconservation.org">Contact Administrator</a>
           </p>
 
           <p className="footer-text">© 2026 Leaf Tracker. All rights reserved.</p>
