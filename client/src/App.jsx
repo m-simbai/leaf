@@ -69,7 +69,7 @@ function App() {
     return <Login onLogin={handleLogin} />
   }
 
-  return <div style={{padding: '50px', fontSize: '3rem', color: 'red'}}>Hello - Debugging Login</div>
+
   // Show Dashboard if authenticated
   return <Dashboard user={user} onLogout={handleLogout} />
 }
